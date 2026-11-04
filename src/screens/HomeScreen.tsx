@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,11 +14,9 @@ import { GlassButton, GlassCard } from '../components/Glass';
 import { Field } from '../components/Field';
 import { ThemePicker } from '../components/ThemePicker';
 import { storage, STORAGE_KEYS } from '../storage';
-
-type AIProvider = 'anthropic' | 'openai' | 'other';
+import { detectProvider } from '../aiProvider';
 
 interface AIConfig {
-  provider: AIProvider;
   apiKey: string;
   model: string;
 }
@@ -30,13 +27,7 @@ interface SalesforceConfig {
   clientSecret: string;
 }
 
-const PROVIDERS: { id: AIProvider; label: string; modelHint: string }[] = [
-  { id: 'anthropic', label: 'Anthropic', modelHint: 'e.g. claude-opus-5-5' },
-  { id: 'openai', label: 'OpenAI', modelHint: 'e.g. gpt-5' },
-  { id: 'other', label: 'Other', modelHint: 'Model name for your provider' },
-];
-
-const EMPTY_AI: AIConfig = { provider: 'anthropic', apiKey: '', model: '' };
+const EMPTY_AI: AIConfig = { apiKey: '', model: '' };
 const EMPTY_SF: SalesforceConfig = { instanceUrl: '', clientId: '', clientSecret: '' };
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
@@ -58,7 +49,10 @@ export function HomeScreen() {
         storage.get(STORAGE_KEYS.salesforceConfig),
       ]);
       try {
-        if (savedAi) setAi({ ...EMPTY_AI, ...JSON.parse(savedAi) });
+        if (savedAi) {
+          const { apiKey = '', model = '' } = JSON.parse(savedAi);
+          setAi({ apiKey, model });
+        }
         if (savedSf) setSf({ ...EMPTY_SF, ...JSON.parse(savedSf) });
       } catch {
         // ignore corrupt saved data
@@ -114,7 +108,12 @@ export function HomeScreen() {
     setStatus({ kind: 'success', message: 'Saved connections cleared.' });
   };
 
-  const provider = PROVIDERS.find((p) => p.id === ai.provider) ?? PROVIDERS[0];
+  const provider = detectProvider(ai.apiKey);
+  const keyHint = !ai.apiKey.trim()
+    ? 'The provider is detected automatically from the key.'
+    : provider
+      ? `Detected: ${provider.label}`
+      : 'Provider not recognized from this key.';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -136,37 +135,10 @@ export function HomeScreen() {
           </View>
 
           <GlassCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: c.text }]}>AI Provider</Text>
+            <Text style={[styles.cardTitle, { color: c.text }]}>AI Model</Text>
             <Text style={[styles.cardSubtitle, { color: c.mutedText }]}>
               The language model that performs the analysis.
             </Text>
-
-            <View style={styles.chips}>
-              {PROVIDERS.map((p) => {
-                const selected = p.id === ai.provider;
-                return (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setAi((prev) => ({ ...prev, provider: p.id }))}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: selected ? c.buttonBg : c.inputBg,
-                        borderColor: selected ? 'transparent' : c.inputBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.chipText, { color: selected ? c.buttonText : c.text }]}
-                    >
-                      {p.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
 
             <Field
               label="API key"
@@ -174,12 +146,13 @@ export function HomeScreen() {
               value={ai.apiKey}
               onChangeText={(apiKey) => setAi((prev) => ({ ...prev, apiKey }))}
               placeholder="Paste your API key"
+              hint={keyHint}
             />
             <Field
               label="Model (optional)"
               value={ai.model}
               onChangeText={(model) => setAi((prev) => ({ ...prev, model }))}
-              placeholder={provider.modelHint}
+              placeholder={provider?.modelHint ?? 'Model name'}
             />
           </GlassCard>
 
@@ -269,14 +242,6 @@ const styles = StyleSheet.create({
   card: { marginBottom: 18 },
   cardTitle: { fontFamily: fonts.body, fontSize: 19, fontWeight: '700' },
   cardSubtitle: { fontFamily: fonts.body, fontSize: 13, marginTop: 4, marginBottom: 16 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  chipText: { fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
   status: {
     fontFamily: fonts.body,
     fontSize: 14,

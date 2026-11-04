@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { fonts } from '../theme/themes';
+import { fonts, frosted } from '../theme/themes';
 
 /** Glassy, slightly transparent window. */
 export function GlassCard({
@@ -24,10 +24,13 @@ export function GlassCard({
     <View
       style={[
         styles.card,
+        frosted,
         {
           backgroundColor: theme.colors.glass,
           borderColor: theme.colors.glassBorder,
+          borderTopColor: theme.colors.glassHighlight,
           shadowColor: theme.colors.shadow,
+          backgroundImage: theme.colors.glassSheen,
         },
         style,
       ]}
@@ -37,9 +40,30 @@ export function GlassCard({
   );
 }
 
+/**
+ * Glossy reflection across the top half of a button, like light catching a
+ * curved glass surface. Place it as the first child of a rounded container
+ * with `overflow: 'hidden'`.
+ */
+export function Reflection({ strength = 1 }: { strength?: number }) {
+  const top = (0.42 * strength).toFixed(2);
+  const bottom = (0.06 * strength).toFixed(2);
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.reflection,
+        {
+          backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, ${top}) 0%, rgba(255, 255, 255, ${bottom}) 100%)`,
+        },
+      ]}
+    />
+  );
+}
+
 type ButtonVariant = 'primary' | 'ghost';
 
-/** Softly rounded glass button. */
+/** Softly rounded glass button with a slight reflection. */
 export function GlassButton({
   label,
   onPress,
@@ -66,15 +90,18 @@ export function GlassButton({
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.button,
+        frosted,
         {
           backgroundColor: isPrimary ? theme.colors.buttonBg : theme.colors.glass,
-          borderColor: isPrimary ? 'rgba(255,255,255,0.35)' : theme.colors.glassBorder,
+          borderColor: isPrimary ? 'rgba(255, 255, 255, 0.3)' : theme.colors.glassBorder,
+          borderTopColor: theme.colors.glassHighlight,
           opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
         style,
       ]}
     >
+      <Reflection strength={theme.dark && !isPrimary ? 0.4 : 1} />
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
@@ -102,6 +129,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 46,
+    overflow: 'hidden',
+  },
+  reflection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
   },
   buttonText: {
     fontFamily: fonts.body,

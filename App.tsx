@@ -9,6 +9,11 @@ function Root() {
   const { theme } = useTheme();
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+      {/* Soft color glows behind the glass windows so their transparency reads. */}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundImage: theme.colors.backgroundGlow }]}
+      />
       {theme.stars ? <StarField /> : null}
       <HomeScreen />
       <StatusBar style={theme.dark ? 'light' : 'dark'} />

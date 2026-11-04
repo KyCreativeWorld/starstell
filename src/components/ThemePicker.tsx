@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { fonts, themeList } from '../theme/themes';
+import { fonts, frosted, themeList } from '../theme/themes';
+import { Reflection } from './Glass';
 
 /** Small "Theme" button that opens a dropdown of available themes. */
 export function ThemePicker() {
@@ -13,6 +14,7 @@ export function ThemePicker() {
   const pillStyle = {
     backgroundColor: theme.colors.glass,
     borderColor: theme.colors.glassBorder,
+    borderTopColor: theme.colors.glassHighlight,
   };
 
   return (
@@ -21,8 +23,9 @@ export function ThemePicker() {
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Change theme"
-        style={({ pressed }) => [styles.pill, pillStyle, { opacity: pressed ? 0.75 : 1 }]}
+        style={({ pressed }) => [styles.pill, frosted, pillStyle, { opacity: pressed ? 0.75 : 1 }]}
       >
+        <Reflection strength={theme.dark ? 0.4 : 1} />
         <Swatch color={theme.colors.primary} border={theme.colors.glassBorder} />
         <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>
         <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▴</Text>
@@ -33,6 +36,7 @@ export function ThemePicker() {
           <View
             style={[
               styles.menu,
+              frosted,
               {
                 bottom: insets.bottom + 64,
                 backgroundColor: theme.dark ? 'rgba(27,27,30,0.92)' : 'rgba(238,244,246,0.95)',
@@ -98,9 +102,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 14,
+    overflow: 'hidden',
   },
   pillText: { fontFamily: fonts.body, fontSize: 13, fontWeight: '600' },
-  caret: { fontSize: 11 },
+  caret: { fontSize: 13 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
   menu: {
     position: 'absolute',

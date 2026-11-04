@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "starstell",
+    "name": "Starstell",
     "slug": "starstell",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,12 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Starstell",
+      "shortName": "Starstell",
+      "description": "AI consultant for workforce planning and reskilling",
+      "themeColor": "#5997a6",
+      "backgroundColor": "#eef4f6"
     },
     "plugins": [
       "expo-secure-store"

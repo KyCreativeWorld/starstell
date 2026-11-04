@@ -18,6 +18,12 @@ export interface Theme {
     /** Translucent fill for glassy cards/windows. */
     glass: string;
     glassBorder: string;
+    /** Brighter top edge, as if light is catching the rim of the glass. */
+    glassHighlight: string;
+    /** Diagonal sheen laid over glass windows (CSS gradient). */
+    glassSheen: string;
+    /** Soft color glows painted on the page so translucent glass has something to show (CSS gradients). */
+    backgroundGlow: string;
     /** Translucent fill for inputs sitting inside a glass card. */
     inputBg: string;
     inputBorder: string;
@@ -43,9 +49,17 @@ const cyan: Theme = {
     mutedText: 'rgba(46, 53, 55, 0.65)',
     primary: '#5997a6',
     accent: '#3d6069',
-    glass: 'rgba(255, 255, 255, 0.55)',
-    glassBorder: 'rgba(255, 255, 255, 0.9)',
-    inputBg: 'rgba(255, 255, 255, 0.6)',
+    glass: 'rgba(255, 255, 255, 0.32)',
+    glassBorder: 'rgba(255, 255, 255, 0.6)',
+    glassHighlight: 'rgba(255, 255, 255, 0.95)',
+    glassSheen:
+      'linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 60%)',
+    backgroundGlow:
+      'radial-gradient(circle at 12% 18%, rgba(89, 151, 166, 0.38) 0%, rgba(89, 151, 166, 0) 38%), ' +
+      'radial-gradient(circle at 62% 35%, rgba(89, 151, 166, 0.30) 0%, rgba(89, 151, 166, 0) 30%), ' +
+      'radial-gradient(circle at 88% 55%, rgba(61, 96, 105, 0.28) 0%, rgba(61, 96, 105, 0) 40%), ' +
+      'radial-gradient(circle at 30% 92%, rgba(89, 151, 166, 0.25) 0%, rgba(89, 151, 166, 0) 35%)',
+    inputBg: 'rgba(255, 255, 255, 0.45)',
     inputBorder: 'rgba(89, 151, 166, 0.35)',
     placeholder: 'rgba(46, 53, 55, 0.4)',
     buttonBg: 'rgba(89, 151, 166, 0.88)',
@@ -68,9 +82,17 @@ const lavenderSpace: Theme = {
     mutedText: 'rgba(251, 250, 255, 0.6)',
     primary: '#d5b5dd',
     accent: '#d5b5dd',
-    glass: 'rgba(251, 250, 255, 0.07)',
-    glassBorder: 'rgba(251, 250, 255, 0.18)',
-    inputBg: 'rgba(251, 250, 255, 0.06)',
+    glass: 'rgba(251, 250, 255, 0.05)',
+    glassBorder: 'rgba(251, 250, 255, 0.14)',
+    glassHighlight: 'rgba(251, 250, 255, 0.35)',
+    glassSheen:
+      'linear-gradient(135deg, rgba(251, 250, 255, 0.10) 0%, rgba(251, 250, 255, 0.02) 45%, rgba(251, 250, 255, 0) 60%)',
+    // Faint lavender nebula; the background stays primarily black per the style guide.
+    backgroundGlow:
+      'radial-gradient(circle at 85% 15%, rgba(213, 181, 221, 0.10) 0%, rgba(213, 181, 221, 0) 40%), ' +
+      'radial-gradient(circle at 10% 80%, rgba(213, 181, 221, 0.07) 0%, rgba(213, 181, 221, 0) 40%)',
+    // Darker fill so stars don't sit behind typed text.
+    inputBg: 'rgba(27, 27, 30, 0.6)',
     inputBorder: 'rgba(213, 181, 221, 0.3)',
     placeholder: 'rgba(251, 250, 255, 0.35)',
     buttonBg: 'rgba(213, 181, 221, 0.85)',
@@ -89,6 +111,15 @@ export const themes: Record<ThemeName, Theme> = {
 export const themeList: Theme[] = [cyan, lavenderSpace];
 
 export const DEFAULT_THEME: ThemeName = 'cyan';
+
+/**
+ * Frosted-glass blur of whatever is behind a translucent surface.
+ * Web only (CSS backdrop-filter); native shows the plain translucent fill.
+ */
+export const frosted = Platform.select<object>({
+  web: { backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' },
+  default: {},
+});
 
 // Style guide font is Trebuchet. It ships with iOS/macOS/Windows; Android falls back to sans-serif.
 export const fonts = {
