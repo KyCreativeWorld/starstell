@@ -28,7 +28,7 @@ export function ThemePicker() {
         <Reflection strength={theme.dark ? 0.4 : 1} />
         <Swatch color={theme.colors.primary} border={theme.colors.glassBorder} />
         <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>
-        <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▴</Text>
+        <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▾</Text>
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -38,7 +38,9 @@ export function ThemePicker() {
               styles.menu,
               frosted,
               {
-                bottom: insets.bottom + 64,
+                // Drops down from the Theme button in the top-right corner.
+                top: insets.top + 52,
+                right: 16,
                 backgroundColor: theme.dark ? 'rgba(27,27,30,0.92)' : 'rgba(238,244,246,0.95)',
                 borderColor: theme.colors.glassBorder,
                 shadowColor: theme.colors.shadow,
@@ -109,7 +111,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
   menu: {
     position: 'absolute',
-    alignSelf: 'center',
     width: 240,
     borderRadius: 16,
     borderWidth: 1,

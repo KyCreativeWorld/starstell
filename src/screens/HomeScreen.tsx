@@ -13,6 +13,7 @@ import { fonts } from '../theme/themes';
 import { GlassButton, GlassCard } from '../components/Glass';
 import { Field } from '../components/Field';
 import { ThemePicker } from '../components/ThemePicker';
+import { ChatWindow } from '../components/ChatWindow';
 import { storage, STORAGE_KEYS } from '../storage';
 import { detectProvider } from '../aiProvider';
 
@@ -37,6 +38,8 @@ export function HomeScreen() {
   const c = theme.colors;
 
   const [ai, setAi] = useState<AIConfig>(EMPTY_AI);
+  // What's actually saved — the chat uses this, not unsaved edits in the form.
+  const [savedAi, setSavedAi] = useState<AIConfig>(EMPTY_AI);
   const [sf, setSf] = useState<SalesforceConfig>(EMPTY_SF);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<Status>(null);
@@ -52,6 +55,7 @@ export function HomeScreen() {
         if (savedAi) {
           const { apiKey = '', model = '' } = JSON.parse(savedAi);
           setAi({ apiKey, model });
+          setSavedAi({ apiKey, model });
         }
         if (savedSf) setSf({ ...EMPTY_SF, ...JSON.parse(savedSf) });
       } catch {
@@ -62,6 +66,9 @@ export function HomeScreen() {
 
   const validate = (): string | null => {
     if (!ai.apiKey.trim()) return 'Enter an AI API key.';
+    // Salesforce is optional for now; only check it once the user starts filling it in.
+    const sfStarted = !!(sf.instanceUrl.trim() || sf.clientId.trim() || sf.clientSecret.trim());
+    if (!sfStarted) return null;
     if (!sf.instanceUrl.trim()) return 'Enter your Salesforce instance URL.';
     if (!/^https:\/\/[^\s/]+/i.test(sf.instanceUrl.trim()))
       return 'Salesforce instance URL must start with https://';
@@ -89,6 +96,7 @@ export function HomeScreen() {
         storage.set(STORAGE_KEYS.salesforceConfig, JSON.stringify(trimmedSf)),
       ]);
       setAi(trimmedAi);
+      setSavedAi(trimmedAi);
       setSf(trimmedSf);
       setStatus({ kind: 'success', message: 'Connections saved.' });
     } catch {
@@ -104,6 +112,7 @@ export function HomeScreen() {
       storage.remove(STORAGE_KEYS.salesforceConfig),
     ]);
     setAi(EMPTY_AI);
+    setSavedAi(EMPTY_AI);
     setSf(EMPTY_SF);
     setStatus({ kind: 'success', message: 'Saved connections cleared.' });
   };
@@ -121,6 +130,10 @@ export function HomeScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        <View style={styles.topBar}>
+          <ThemePicker />
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -209,7 +222,7 @@ export function HomeScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <ThemePicker />
+          <ChatWindow apiKey={savedAi.apiKey} model={savedAi.model} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -219,9 +232,15 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
   scroll: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 4,
     paddingBottom: 24,
     width: '100%',
     maxWidth: 560,
@@ -250,5 +269,5 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: 'row', gap: 12 },
   saveButton: { flex: 2 },
-  footer: { paddingVertical: 10, alignItems: 'center' },
+  footer: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10 },
 });
