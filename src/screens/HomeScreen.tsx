@@ -1,0 +1,289 @@
+import React, { useEffect, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../theme/ThemeContext';
+import { fonts } from '../theme/themes';
+import { GlassButton, GlassCard } from '../components/Glass';
+import { Field } from '../components/Field';
+import { ThemePicker } from '../components/ThemePicker';
+import { storage, STORAGE_KEYS } from '../storage';
+
+type AIProvider = 'anthropic' | 'openai' | 'other';
+
+interface AIConfig {
+  provider: AIProvider;
+  apiKey: string;
+  model: string;
+}
+
+interface SalesforceConfig {
+  instanceUrl: string;
+  clientId: string;
+  clientSecret: string;
+}
+
+const PROVIDERS: { id: AIProvider; label: string; modelHint: string }[] = [
+  { id: 'anthropic', label: 'Anthropic', modelHint: 'e.g. claude-opus-5-5' },
+  { id: 'openai', label: 'OpenAI', modelHint: 'e.g. gpt-5' },
+  { id: 'other', label: 'Other', modelHint: 'Model name for your provider' },
+];
+
+const EMPTY_AI: AIConfig = { provider: 'anthropic', apiKey: '', model: '' };
+const EMPTY_SF: SalesforceConfig = { instanceUrl: '', clientId: '', clientSecret: '' };
+
+type Status = { kind: 'success' | 'error'; message: string } | null;
+
+export function HomeScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
+  const [ai, setAi] = useState<AIConfig>(EMPTY_AI);
+  const [sf, setSf] = useState<SalesforceConfig>(EMPTY_SF);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<Status>(null);
+
+  // Load previously saved connection details.
+  useEffect(() => {
+    (async () => {
+      const [savedAi, savedSf] = await Promise.all([
+        storage.get(STORAGE_KEYS.aiConfig),
+        storage.get(STORAGE_KEYS.salesforceConfig),
+      ]);
+      try {
+        if (savedAi) setAi({ ...EMPTY_AI, ...JSON.parse(savedAi) });
+        if (savedSf) setSf({ ...EMPTY_SF, ...JSON.parse(savedSf) });
+      } catch {
+        // ignore corrupt saved data
+      }
+    })();
+  }, []);
+
+  const validate = (): string | null => {
+    if (!ai.apiKey.trim()) return 'Enter an AI API key.';
+    if (!sf.instanceUrl.trim()) return 'Enter your Salesforce instance URL.';
+    if (!/^https:\/\/[^\s/]+/i.test(sf.instanceUrl.trim()))
+      return 'Salesforce instance URL must start with https://';
+    if (!sf.clientId.trim() || !sf.clientSecret.trim())
+      return 'Enter the Salesforce consumer key and secret.';
+    return null;
+  };
+
+  const handleSave = async () => {
+    const error = validate();
+    if (error) {
+      setStatus({ kind: 'error', message: error });
+      return;
+    }
+    setSaving(true);
+    try {
+      const trimmedAi = { ...ai, apiKey: ai.apiKey.trim(), model: ai.model.trim() };
+      const trimmedSf = {
+        instanceUrl: sf.instanceUrl.trim().replace(/\/+$/, ''),
+        clientId: sf.clientId.trim(),
+        clientSecret: sf.clientSecret.trim(),
+      };
+      await Promise.all([
+        storage.set(STORAGE_KEYS.aiConfig, JSON.stringify(trimmedAi)),
+        storage.set(STORAGE_KEYS.salesforceConfig, JSON.stringify(trimmedSf)),
+      ]);
+      setAi(trimmedAi);
+      setSf(trimmedSf);
+      setStatus({ kind: 'success', message: 'Connections saved.' });
+    } catch {
+      setStatus({ kind: 'error', message: 'Could not save. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async () => {
+    await Promise.all([
+      storage.remove(STORAGE_KEYS.aiConfig),
+      storage.remove(STORAGE_KEYS.salesforceConfig),
+    ]);
+    setAi(EMPTY_AI);
+    setSf(EMPTY_SF);
+    setStatus({ kind: 'success', message: 'Saved connections cleared.' });
+  };
+
+  const provider = PROVIDERS.find((p) => p.id === ai.provider) ?? PROVIDERS[0];
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={[styles.wordmark, { color: theme.dark ? c.primary : c.text }]}>
+              STARSTELL
+            </Text>
+            <Text style={[styles.tagline, { color: c.mutedText }]}>
+              AI consultant for workforce planning and reskilling
+            </Text>
+          </View>
+
+          <GlassCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>AI Provider</Text>
+            <Text style={[styles.cardSubtitle, { color: c.mutedText }]}>
+              The language model that performs the analysis.
+            </Text>
+
+            <View style={styles.chips}>
+              {PROVIDERS.map((p) => {
+                const selected = p.id === ai.provider;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => setAi((prev) => ({ ...prev, provider: p.id }))}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: selected ? c.buttonBg : c.inputBg,
+                        borderColor: selected ? 'transparent' : c.inputBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.chipText, { color: selected ? c.buttonText : c.text }]}
+                    >
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Field
+              label="API key"
+              secret
+              value={ai.apiKey}
+              onChangeText={(apiKey) => setAi((prev) => ({ ...prev, apiKey }))}
+              placeholder="Paste your API key"
+            />
+            <Field
+              label="Model (optional)"
+              value={ai.model}
+              onChangeText={(model) => setAi((prev) => ({ ...prev, model }))}
+              placeholder={provider.modelHint}
+            />
+          </GlassCard>
+
+          <GlassCard style={styles.card}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Salesforce</Text>
+            <Text style={[styles.cardSubtitle, { color: c.mutedText }]}>
+              Connected App credentials used to read organizational data.
+            </Text>
+
+            <Field
+              label="Instance URL"
+              value={sf.instanceUrl}
+              onChangeText={(instanceUrl) => setSf((prev) => ({ ...prev, instanceUrl }))}
+              placeholder="https://yourcompany.my.salesforce.com"
+              keyboardType="url"
+            />
+            <Field
+              label="Consumer key (client ID)"
+              value={sf.clientId}
+              onChangeText={(clientId) => setSf((prev) => ({ ...prev, clientId }))}
+              placeholder="Connected App consumer key"
+            />
+            <Field
+              label="Consumer secret (client secret)"
+              secret
+              value={sf.clientSecret}
+              onChangeText={(clientSecret) => setSf((prev) => ({ ...prev, clientSecret }))}
+              placeholder="Connected App consumer secret"
+              hint="Found under Setup → App Manager → your Connected App."
+            />
+          </GlassCard>
+
+          {status ? (
+            <Text
+              style={[
+                styles.status,
+                { color: status.kind === 'success' ? c.success : c.danger },
+              ]}
+              accessibilityLiveRegion="polite"
+            >
+              {status.message}
+            </Text>
+          ) : null}
+
+          <View style={styles.actions}>
+            <GlassButton label="Clear" variant="ghost" onPress={handleClear} style={styles.flex} />
+            <GlassButton
+              label="Save connections"
+              onPress={handleSave}
+              loading={saving}
+              style={styles.saveButton}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <ThemePicker />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 24,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  header: { alignItems: 'center', marginBottom: 28 },
+  wordmark: {
+    fontFamily: fonts.display,
+    fontSize: 44,
+    letterSpacing: 2,
+  },
+  tagline: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  card: { marginBottom: 18 },
+  cardTitle: { fontFamily: fonts.body, fontSize: 19, fontWeight: '700' },
+  cardSubtitle: { fontFamily: fonts.body, fontSize: 13, marginTop: 4, marginBottom: 16 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  chipText: { fontFamily: fonts.body, fontSize: 14, fontWeight: '600' },
+  status: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  actions: { flexDirection: 'row', gap: 12 },
+  saveButton: { flex: 2 },
+  footer: { paddingVertical: 10, alignItems: 'center' },
+});
