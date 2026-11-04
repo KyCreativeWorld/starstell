@@ -35,7 +35,40 @@ html = html.replace(scriptTag, (_match, src) => {
 });
 if (scripts.length === 0) throw new Error('No bundled <script src="..."> found in dist/index.html');
 
-const inlined = scripts.map((code) => `<script>\n${code}\n</script>`).join('\n');
+// Regex lookbehind is a *syntax* error in Safari/iOS before 16.4: the whole
+// bundle fails to parse and the page stays blank. Refuse to ship it.
+const lookbehind = scripts.join('\n').match(/.{0,60}\(\?<[=!].{0,30}/);
+if (lookbehind) {
+  throw new Error(
+    `Bundle contains regex lookbehind, which breaks older Safari/iOS:\n  ${lookbehind[0]}\n` +
+      'Find the package that introduced it and patch it (see patches/).',
+  );
+}
+
+// If the app fails to start (e.g. an unsupported browser), show the reason on
+// the page instead of a blank screen.
+const startupGuard = `<script>
+  (function () {
+    function show(msg) {
+      var root = document.getElementById('root');
+      if (!root || root.children.length) return;
+      root.innerHTML =
+        '<div style="margin:auto;max-width:440px;padding:24px;font-family:Trebuchet MS,sans-serif;color:#2e3537;text-align:center">' +
+        '<h2 style="font-weight:600">Starstell couldn\\'t start in this browser</h2>' +
+        '<p>Try the latest Chrome, Firefox, Edge, or Safari.</p>' +
+        '<pre style="white-space:pre-wrap;font-size:12px;opacity:.7"></pre></div>';
+      root.querySelector('pre').textContent = String(msg);
+    }
+    window.addEventListener('error', function (e) { show(e.message || e.error); });
+    window.addEventListener('unhandledrejection', function (e) { show(e.reason); });
+    window.addEventListener('load', function () {
+      setTimeout(function () { show('The app did not render.'); }, 4000);
+    });
+  })();
+</script>`;
+
+const inlined =
+  startupGuard + '\n' + scripts.map((code) => `<script>\n${code}\n</script>`).join('\n');
 // Function replacer so `$` sequences in the bundle are not treated as patterns.
 html = html.replace('</body>', () => `${inlined}\n</body>`);
 

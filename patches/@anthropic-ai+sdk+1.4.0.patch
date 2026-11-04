@@ -1,0 +1,50 @@
+diff --git a/node_modules/@anthropic-ai/sdk/internal/utils/path.js b/node_modules/@anthropic-ai/sdk/internal/utils/path.js
+index 9dcce82..0e1f9f2 100644
+--- a/node_modules/@anthropic-ai/sdk/internal/utils/path.js
++++ b/node_modules/@anthropic-ai/sdk/internal/utils/path.js
+@@ -53,14 +53,16 @@ const createPathTagFunction = (pathEncoder = encodeURIPath) => function path(sta
+         return previousValue + currentValue + (index === params.length ? '' : encoded);
+     }, '');
+     const pathOnly = path.split(/[?#]/, 1)[0];
+-    const invalidSegmentPattern = /(?<=^|\/)(?:\.|%2e){1,2}(?=\/|$)/gi;
++    // Patched (patch-package): same check without regex lookbehind, which
++    // Safari/iOS < 16.4 can't parse (a syntax error there blanks the whole page).
++    const invalidSegmentPattern = /(^|\/)((?:\.|%2e){1,2})(?=\/|$)/gi;
+     let match;
+     // Find all invalid segments
+     while ((match = invalidSegmentPattern.exec(pathOnly)) !== null) {
+         invalidSegments.push({
+-            start: match.index,
+-            length: match[0].length,
+-            error: `Value "${match[0]}" can\'t be safely passed as a path parameter`,
++            start: match.index + match[1].length,
++            length: match[2].length,
++            error: `Value "${match[2]}" can\'t be safely passed as a path parameter`,
+         });
+     }
+     invalidSegments.sort((a, b) => a.start - b.start);
+diff --git a/node_modules/@anthropic-ai/sdk/internal/utils/path.mjs b/node_modules/@anthropic-ai/sdk/internal/utils/path.mjs
+index 56581b4..268f5cd 100644
+--- a/node_modules/@anthropic-ai/sdk/internal/utils/path.mjs
++++ b/node_modules/@anthropic-ai/sdk/internal/utils/path.mjs
+@@ -49,14 +49,16 @@ export const createPathTagFunction = (pathEncoder = encodeURIPath) => function p
+         return previousValue + currentValue + (index === params.length ? '' : encoded);
+     }, '');
+     const pathOnly = path.split(/[?#]/, 1)[0];
+-    const invalidSegmentPattern = /(?<=^|\/)(?:\.|%2e){1,2}(?=\/|$)/gi;
++    // Patched (patch-package): same check without regex lookbehind, which
++    // Safari/iOS < 16.4 can't parse (a syntax error there blanks the whole page).
++    const invalidSegmentPattern = /(^|\/)((?:\.|%2e){1,2})(?=\/|$)/gi;
+     let match;
+     // Find all invalid segments
+     while ((match = invalidSegmentPattern.exec(pathOnly)) !== null) {
+         invalidSegments.push({
+-            start: match.index,
+-            length: match[0].length,
+-            error: `Value "${match[0]}" can\'t be safely passed as a path parameter`,
++            start: match.index + match[1].length,
++            length: match[2].length,
++            error: `Value "${match[2]}" can\'t be safely passed as a path parameter`,
+         });
+     }
+     invalidSegments.sort((a, b) => a.start - b.start);

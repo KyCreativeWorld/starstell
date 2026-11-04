@@ -52,12 +52,22 @@ export function HomeScreen() {
         storage.get(STORAGE_KEYS.salesforceConfig),
       ]);
       try {
+        // Only accept string fields, so odd saved data can't crash the app.
+        const str = (v: unknown) => (typeof v === 'string' ? v : '');
         if (savedAi) {
-          const { apiKey = '', model = '' } = JSON.parse(savedAi);
-          setAi({ apiKey, model });
-          setSavedAi({ apiKey, model });
+          const parsed = JSON.parse(savedAi) ?? {};
+          const loaded = { apiKey: str(parsed.apiKey), model: str(parsed.model) };
+          setAi(loaded);
+          setSavedAi(loaded);
         }
-        if (savedSf) setSf({ ...EMPTY_SF, ...JSON.parse(savedSf) });
+        if (savedSf) {
+          const parsed = JSON.parse(savedSf) ?? {};
+          setSf({
+            instanceUrl: str(parsed.instanceUrl),
+            clientId: str(parsed.clientId),
+            clientSecret: str(parsed.clientSecret),
+          });
+        }
       } catch {
         // ignore corrupt saved data
       }

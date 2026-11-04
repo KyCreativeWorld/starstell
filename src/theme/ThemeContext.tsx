@@ -15,7 +15,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Restore the last chosen theme.
   useEffect(() => {
     storage.get(STORAGE_KEYS.theme).then((saved) => {
-      if (saved && saved in themes) setThemeNameState(saved as ThemeName);
+      if (saved && Object.prototype.hasOwnProperty.call(themes, saved)) {
+        setThemeNameState(saved as ThemeName);
+      }
     });
   }, []);
 

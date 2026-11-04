@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { StarField } from './src/components/StarField';
 import { HomeScreen } from './src/screens/HomeScreen';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 function Root() {
   const { theme } = useTheme();
@@ -23,11 +24,13 @@ function Root() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <Root />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <Root />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
