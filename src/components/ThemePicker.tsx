@@ -25,7 +25,7 @@ export function ThemePicker() {
         accessibilityLabel="Change theme"
         style={({ pressed }) => [styles.pill, frosted, pillStyle, { opacity: pressed ? 0.75 : 1 }]}
       >
-        <Reflection strength={theme.dark ? 0.4 : 1} />
+        <Reflection strength={theme.glassReflection} />
         <Swatch color={theme.colors.primary} border={theme.colors.glassBorder} />
         <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>
         <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▾</Text>
@@ -41,7 +41,7 @@ export function ThemePicker() {
                 // Drops down from the Theme button in the top-right corner.
                 top: insets.top + 52,
                 right: 16,
-                backgroundColor: theme.dark ? 'rgba(27,27,30,0.92)' : 'rgba(238,244,246,0.95)',
+                backgroundColor: theme.colors.menu,
                 borderColor: theme.colors.glassBorder,
                 shadowColor: theme.colors.shadow,
               },

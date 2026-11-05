@@ -80,7 +80,7 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
         styles.panel,
         frosted,
         {
-          backgroundColor: theme.dark ? 'rgba(27, 27, 30, 0.55)' : 'rgba(255, 255, 255, 0.4)',
+          backgroundColor: c.panel,
           borderColor: c.glassBorder,
           borderTopColor: c.glassHighlight,
           shadowColor: c.shadow,

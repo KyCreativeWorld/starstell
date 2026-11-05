@@ -101,7 +101,7 @@ export function GlassButton({
         style,
       ]}
     >
-      <Reflection strength={theme.dark && !isPrimary ? 0.4 : 1} />
+      <Reflection strength={isPrimary ? 1 : theme.glassReflection} />
       {loading ? (
         <ActivityIndicator color={textColor} />
       ) : (
