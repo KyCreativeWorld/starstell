@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,12 +20,24 @@ interface DisplayMessage {
   text: string;
 }
 
-/** Small chat panel docked at the bottom, connected to the saved AI API key. */
-export function ChatWindow({ apiKey, model }: { apiKey: string; model: string }) {
+/**
+ * Chat panel connected to the saved AI API key. By default a small collapsible
+ * panel; with `fill` it takes the available height and stays open.
+ */
+export function ChatWindow({
+  apiKey,
+  model,
+  fill = false,
+}: {
+  apiKey: string;
+  model: string;
+  fill?: boolean;
+}) {
   const { theme } = useTheme();
   const c = theme.colors;
 
-  const [expanded, setExpanded] = useState(true);
+  const [expandedState, setExpanded] = useState(true);
+  const expanded = fill || expandedState;
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -42,11 +54,14 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
     }
   }, [apiKey, model]);
 
-  useEffect(() => {
+  // New client → fresh conversation. (Adjusting state during render, not in an effect.)
+  const [prevClient, setPrevClient] = useState(client);
+  if (client !== prevClient) {
+    setPrevClient(client);
     setMessages([]);
     // Stay out of the way until there's a key to chat with.
     setExpanded(!!client);
-  }, [client]);
+  }
 
   const add = (role: DisplayMessage['role'], text: string) =>
     setMessages((prev) => [...prev, { id: nextId.current++, role, text }]);
@@ -67,7 +82,7 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
   };
 
   const status = !apiKey.trim()
-    ? 'Save an AI API key above to start chatting.'
+    ? 'Add an AI API key in Settings to start chatting.'
     : setupError
       ? setupError
       : `${client!.provider.label} · ${client!.model}`;
@@ -78,6 +93,7 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
     <View
       style={[
         styles.panel,
+        fill && styles.panelFill,
         frosted,
         {
           backgroundColor: c.panel,
@@ -90,8 +106,9 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
     >
       <Pressable
         onPress={() => setExpanded((e) => !e)}
-        accessibilityRole="button"
-        accessibilityLabel={expanded ? 'Minimize chat' : 'Expand chat'}
+        disabled={fill}
+        accessibilityRole={fill ? undefined : 'button'}
+        accessibilityLabel={fill ? undefined : expanded ? 'Minimize chat' : 'Expand chat'}
         style={styles.header}
       >
         <View style={styles.headerText}>
@@ -113,14 +130,16 @@ export function ChatWindow({ apiKey, model }: { apiKey: string; model: string })
             <Text style={[styles.headerAction, { color: c.primary }]}>Clear</Text>
           </Pressable>
         ) : null}
-        <Text style={[styles.chevron, { color: c.mutedText }]}>{expanded ? '▾' : '▴'}</Text>
+        {fill ? null : (
+          <Text style={[styles.chevron, { color: c.mutedText }]}>{expanded ? '▾' : '▴'}</Text>
+        )}
       </Pressable>
 
       {expanded ? (
         <>
           <ScrollView
             ref={scrollRef}
-            style={styles.messages}
+            style={fill ? styles.messagesFill : styles.messages}
             contentContainerStyle={styles.messagesContent}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
           >
@@ -222,6 +241,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 4,
   },
+  panelFill: { flex: 1, maxWidth: 720, paddingHorizontal: 16, paddingVertical: 14 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerText: { flex: 1 },
   title: { fontFamily: fonts.body, fontSize: 15, fontWeight: '700' },
@@ -229,6 +249,7 @@ const styles = StyleSheet.create({
   headerAction: { fontFamily: fonts.body, fontSize: 13, fontWeight: '600' },
   chevron: { fontSize: 14, width: 16, textAlign: 'center' },
   messages: { height: 170, marginTop: 10 },
+  messagesFill: { flex: 1, minHeight: 160, marginTop: 12 },
   messagesContent: { gap: 8, paddingBottom: 4 },
   empty: { fontFamily: fonts.body, fontSize: 13, textAlign: 'center', marginTop: 56 },
   bubble: {

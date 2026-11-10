@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { storage, STORAGE_KEYS } from '../storage';
+import { clearSavedReport } from '../report/reportStore';
 
 interface State {
   error: Error | null;
@@ -22,7 +23,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   }
 
   private reset = async () => {
-    await Promise.all(Object.values(STORAGE_KEYS).map((k) => storage.remove(k)));
+    await Promise.all([...Object.values(STORAGE_KEYS).map((k) => storage.remove(k)), clearSavedReport()]);
     this.setState({ error: null });
   };
 

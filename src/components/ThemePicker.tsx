@@ -6,7 +6,7 @@ import { fonts, frosted, themeList } from '../theme/themes';
 import { Reflection } from './Glass';
 
 /** Small "Theme" button that opens a dropdown of available themes. */
-export function ThemePicker() {
+export function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { theme, setThemeName } = useTheme();
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -27,7 +27,7 @@ export function ThemePicker() {
       >
         <Reflection strength={theme.glassReflection} />
         <Swatch color={theme.colors.primary} border={theme.colors.glassBorder} />
-        <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>
+        {compact ? null : <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>}
         <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▾</Text>
       </Pressable>
 
@@ -38,8 +38,8 @@ export function ThemePicker() {
               styles.menu,
               frosted,
               {
-                // Drops down from the Theme button in the top-right corner.
-                top: insets.top + 52,
+                // Drops down from the Theme button at the right end of the top bar.
+                top: insets.top + 60,
                 right: 16,
                 backgroundColor: theme.colors.menu,
                 borderColor: theme.colors.glassBorder,

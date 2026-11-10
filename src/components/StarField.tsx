@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 
 const STAR_COUNT = 90;
@@ -25,7 +25,7 @@ function makeStars(count: number): Star[] {
 }
 
 function BlinkingStar({ star }: { star: Star }) {
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [opacity] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     const loop = Animated.loop(
