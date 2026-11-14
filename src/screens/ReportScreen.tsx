@@ -16,10 +16,18 @@ import { GlassButton, GlassCard } from '../components/Glass';
 import { Constellation } from '../components/Constellation';
 import { ClusterMenu } from '../components/ClusterMenu';
 import { ReportSidebar } from '../components/ReportSidebar';
+import { StarLineup } from '../components/StarLineup';
+import { PdfView } from '../components/PdfView';
+import { VisualPicker, type ReportVisual } from '../components/VisualPicker';
 import { useReport } from '../report/ReportContext';
 import { pickAndParseReport, ReportParseError } from '../report/reportStore';
 import { DEFAULT_FILTERS, filtersActive, matchesFilters, type ReportFilters } from '../report/filters';
 import type { Report } from '../report/types';
+
+/** Px kept clear at the top of a visual for the overlaid filters button / view picker. */
+const TOP_BAR_SPACE = 64;
+/** Px kept clear at the right of the PDF header for the view picker (wide layout). */
+const PICKER_SPACE = 190;
 
 interface Selection {
   teamId: string;
@@ -161,6 +169,7 @@ function ReportView({
   const { width } = useWindowDimensions();
   const wide = width >= 900;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [visual, setVisual] = useState<ReportVisual>('sky');
   const insets = useSafeAreaInsets();
 
   const byId = useMemo(() => new Map(report.bottlenecks.map((b) => [b.id, b])), [report]);
@@ -203,6 +212,8 @@ function ReportView({
   ) : null;
 
   const title = report.client ?? report.title ?? report.fileName.replace(/\.pdf$/i, '');
+  // The details panel covers the top controls in the visual views.
+  const showTopBar = visual === 'pdf' || !selection;
 
   return (
     <View style={styles.layout}>
@@ -213,36 +224,63 @@ function ReportView({
       ) : null}
 
       <View style={[styles.skyArea, wide && styles.skyAreaWide]}>
-        <Constellation
-          report={report}
-          active={active}
-          selectedTeamId={selection?.teamId ?? null}
-          hiddenTeamIds={filters.hiddenTeams}
-          isVisible={isVisible}
-          insetTop={wide ? 0 : 44}
-          onSelectTeam={onSelect}
-          onClose={onClose}
-          menu={menu}
-        />
-        {!wide && !selection ? (
-          <Pressable
-            onPress={() => setDrawerOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Open filters and report details"
-            style={({ pressed }) => [
-              styles.filtersButton,
-              frosted,
-              { backgroundColor: c.menu, borderColor: c.glassBorder, opacity: pressed ? 0.8 : 1 },
-            ]}
-          >
-            <Text style={[styles.filtersIcon, { color: c.primary }]}>☰</Text>
-            <Text style={[styles.filtersText, { color: c.text }]} numberOfLines={1}>
-              {title}
-            </Text>
-            <Text style={[styles.filtersMeta, { color: filtersActive(filters) ? c.primary : c.mutedText }]}>
-              {filtersActive(filters) ? 'Filtered' : 'Filters'}
-            </Text>
-          </Pressable>
+        {visual === 'sky' ? (
+          <Constellation
+            report={report}
+            active={active}
+            selectedTeamId={selection?.teamId ?? null}
+            hiddenTeamIds={filters.hiddenTeams}
+            isVisible={isVisible}
+            insetTop={wide ? 0 : 44}
+            onSelectTeam={onSelect}
+            onClose={onClose}
+            menu={menu}
+          />
+        ) : visual === 'lineup' ? (
+          <StarLineup
+            report={report}
+            active={active}
+            hiddenTeamIds={filters.hiddenTeams}
+            isVisible={isVisible}
+            selectedBottleneckId={selection?.bottleneckId ?? null}
+            insetTop={TOP_BAR_SPACE}
+            onSelect={onSelect}
+            onClose={onClose}
+            menu={menu}
+          />
+        ) : (
+          <PdfView
+            report={report}
+            insetTop={wide ? 0 : TOP_BAR_SPACE}
+            insetRight={wide ? PICKER_SPACE : 0}
+            onReplace={onReplace}
+            busy={busy}
+          />
+        )}
+        {showTopBar ? (
+          <View style={[styles.topBar, wide ? styles.topBarWide : styles.topBarNarrow]} pointerEvents="box-none">
+            {!wide ? (
+              <Pressable
+                onPress={() => setDrawerOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Open filters and report details"
+                style={({ pressed }) => [
+                  styles.filtersButton,
+                  frosted,
+                  { backgroundColor: c.menu, borderColor: c.glassBorder, opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Text style={[styles.filtersIcon, { color: c.primary }]}>☰</Text>
+                <Text style={[styles.filtersText, { color: c.text }]} numberOfLines={1}>
+                  {title}
+                </Text>
+                <Text style={[styles.filtersMeta, { color: filtersActive(filters) ? c.primary : c.mutedText }]}>
+                  {filtersActive(filters) ? 'Filtered' : 'Filters'}
+                </Text>
+              </Pressable>
+            ) : null}
+            <VisualPicker value={visual} onChange={setVisual} />
+          </View>
         ) : null}
       </View>
 
@@ -291,11 +329,17 @@ const styles = StyleSheet.create({
   sidebar: { width: 300, margin: 12, marginRight: 0, padding: 0, overflow: 'hidden' },
   skyArea: { flex: 1, padding: 10 },
   skyAreaWide: { padding: 12 },
-  filtersButton: {
+  topBar: {
     position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 50,
+  },
+  topBarNarrow: { top: 20, left: 20, right: 20 },
+  topBarWide: { top: 22, right: 24 },
+  filtersButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

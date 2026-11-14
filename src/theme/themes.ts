@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-export type ThemeName = 'cyan' | 'lavender_space' | 'cyan_space' | 'safe_space';
+export type ThemeName = 'cyan' | 'light_calm' | 'lavender_space' | 'cyan_space' | 'safe_space';
 
 export interface Theme {
   name: ThemeName;
@@ -76,6 +76,45 @@ const cyan: Theme = {
     success: '#3d6069',
     danger: '#a14a4a',
     shadow: '#3d6069',
+  },
+};
+
+// Colors taken from style_guide/light_calm_theme.png (see style_guide/app_style.md).
+// A softer sibling of Cyan: misty off-white, sea-glass sage, deep sage, with a
+// faint warm-sand glow in the background.
+const lightCalm: Theme = {
+  name: 'light_calm',
+  label: 'Light Calm',
+  dark: false,
+  stars: false,
+  glassReflection: 1,
+  colors: {
+    background: '#f3f6f4',
+    text: '#2f3a38',
+    mutedText: 'rgba(47, 58, 56, 0.66)',
+    primary: '#5e9384',
+    accent: '#3f645a',
+    glass: 'rgba(255, 255, 255, 0.36)',
+    glassBorder: 'rgba(255, 255, 255, 0.65)',
+    glassHighlight: 'rgba(255, 255, 255, 0.95)',
+    glassSheen:
+      'linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 60%)',
+    panel: 'rgba(255, 255, 255, 0.44)',
+    menu: 'rgba(243, 246, 244, 0.95)',
+    backgroundGlow:
+      'radial-gradient(circle at 14% 20%, rgba(94, 147, 132, 0.30) 0%, rgba(94, 147, 132, 0) 38%), ' +
+      'radial-gradient(circle at 64% 32%, rgba(233, 220, 200, 0.55) 0%, rgba(233, 220, 200, 0) 32%), ' +
+      'radial-gradient(circle at 88% 58%, rgba(63, 100, 90, 0.20) 0%, rgba(63, 100, 90, 0) 40%), ' +
+      'radial-gradient(circle at 30% 90%, rgba(94, 147, 132, 0.22) 0%, rgba(94, 147, 132, 0) 35%)',
+    inputBg: 'rgba(255, 255, 255, 0.5)',
+    inputBorder: 'rgba(94, 147, 132, 0.4)',
+    placeholder: 'rgba(47, 58, 56, 0.42)',
+    // Deep sage (not the lighter sage) so button labels stay easy to read.
+    buttonBg: 'rgba(63, 100, 90, 0.92)',
+    buttonText: '#f3f6f4',
+    success: '#3f645a',
+    danger: '#a14a4a',
+    shadow: '#3f645a',
   },
 };
 
@@ -190,12 +229,13 @@ const safeSpace: Theme = {
 
 export const themes: Record<ThemeName, Theme> = {
   cyan,
+  light_calm: lightCalm,
   lavender_space: lavenderSpace,
   cyan_space: cyanSpace,
   safe_space: safeSpace,
 };
 
-export const themeList: Theme[] = [cyan, lavenderSpace, cyanSpace, safeSpace];
+export const themeList: Theme[] = [cyan, lightCalm, lavenderSpace, cyanSpace, safeSpace];
 
 export const DEFAULT_THEME: ThemeName = 'cyan';
 

@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { parseReportPdf, ReportParseError } from './parseReport';
+import { clearPdf, savePdf } from './pdfStore';
 import type { Report } from './types';
 
 const WEB_KEY = 'starstell.report';
@@ -40,7 +41,10 @@ export async function pickAndParseReport(onReading?: () => void): Promise<Report
   const bytes = await readBytes(asset);
   // Let the "Reading…" state paint before the synchronous parse.
   await new Promise((r) => setTimeout(r, 30));
-  return parseReportPdf(bytes, asset.name);
+  const report = parseReportPdf(bytes, asset.name);
+  // Only a PDF that parsed replaces the saved copy.
+  await savePdf(bytes);
+  return report;
 }
 
 async function readBytes(asset: DocumentPicker.DocumentPickerAsset): Promise<Uint8Array> {
@@ -87,6 +91,7 @@ export async function saveReport(report: Report): Promise<void> {
 }
 
 export async function clearSavedReport(): Promise<void> {
+  await clearPdf();
   try {
     if (Platform.OS === 'web') globalThis.localStorage?.removeItem(WEB_KEY);
     else {
