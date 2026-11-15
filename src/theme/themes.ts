@@ -9,6 +9,8 @@ export interface Theme {
   dark: boolean;
   /** Show the blinking star field behind the content. */
   stars: boolean;
+  /** Clean, flat surfaces: no glossy reflections on buttons. */
+  flat?: boolean;
   /** Strength of the glossy reflection on glass (non-filled) buttons, 0–1. */
   glassReflection: number;
   colors: {
@@ -79,42 +81,38 @@ const cyan: Theme = {
   },
 };
 
-// Colors taken from style_guide/light_calm_theme.png (see style_guide/app_style.md).
-// A softer sibling of Cyan: misty off-white, sea-glass sage, deep sage, with a
-// faint warm-sand glow in the background.
+// Light Calm: a clean, flat take on Cyan. Cool porcelain page, solid white
+// surfaces with hairline borders, and a refined cyan — no frosted glass, sheen,
+// reflections or background glows.
 const lightCalm: Theme = {
   name: 'light_calm',
   label: 'Light Calm',
   dark: false,
   stars: false,
-  glassReflection: 1,
+  flat: true,
+  glassReflection: 0,
   colors: {
-    background: '#f3f6f4',
-    text: '#2f3a38',
-    mutedText: 'rgba(47, 58, 56, 0.66)',
-    primary: '#5e9384',
-    accent: '#3f645a',
-    glass: 'rgba(255, 255, 255, 0.36)',
-    glassBorder: 'rgba(255, 255, 255, 0.65)',
-    glassHighlight: 'rgba(255, 255, 255, 0.95)',
-    glassSheen:
-      'linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 60%)',
-    panel: 'rgba(255, 255, 255, 0.44)',
-    menu: 'rgba(243, 246, 244, 0.95)',
-    backgroundGlow:
-      'radial-gradient(circle at 14% 20%, rgba(94, 147, 132, 0.30) 0%, rgba(94, 147, 132, 0) 38%), ' +
-      'radial-gradient(circle at 64% 32%, rgba(233, 220, 200, 0.55) 0%, rgba(233, 220, 200, 0) 32%), ' +
-      'radial-gradient(circle at 88% 58%, rgba(63, 100, 90, 0.20) 0%, rgba(63, 100, 90, 0) 40%), ' +
-      'radial-gradient(circle at 30% 90%, rgba(94, 147, 132, 0.22) 0%, rgba(94, 147, 132, 0) 35%)',
-    inputBg: 'rgba(255, 255, 255, 0.5)',
-    inputBorder: 'rgba(94, 147, 132, 0.4)',
-    placeholder: 'rgba(47, 58, 56, 0.42)',
-    // Deep sage (not the lighter sage) so button labels stay easy to read.
-    buttonBg: 'rgba(63, 100, 90, 0.92)',
-    buttonText: '#f3f6f4',
-    success: '#3f645a',
-    danger: '#a14a4a',
-    shadow: '#3f645a',
+    background: '#f6f8f9',
+    text: '#1d2a2f',
+    mutedText: '#5f6f75',
+    primary: '#1f97ad',
+    accent: '#0f6b7c',
+    glass: '#ffffff',
+    glassBorder: '#e1e8ea',
+    glassHighlight: '#e1e8ea',
+    glassSheen: 'none',
+    panel: '#ffffff',
+    menu: '#ffffff',
+    backgroundGlow: 'none',
+    inputBg: '#f6f8f9',
+    inputBorder: '#d5e0e3',
+    placeholder: '#94a3a8',
+    // Deep cyan so button labels stay crisp and readable.
+    buttonBg: '#0f6b7c',
+    buttonText: '#ffffff',
+    success: '#0f6b7c',
+    danger: '#b0453f',
+    shadow: '#16343b',
   },
 };
 
@@ -237,7 +235,7 @@ export const themes: Record<ThemeName, Theme> = {
 
 export const themeList: Theme[] = [cyan, lightCalm, lavenderSpace, cyanSpace, safeSpace];
 
-export const DEFAULT_THEME: ThemeName = 'cyan';
+export const DEFAULT_THEME: ThemeName = 'light_calm';
 
 /**
  * Frosted-glass blur of whatever is behind a translucent surface.

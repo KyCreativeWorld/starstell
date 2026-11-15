@@ -12,16 +12,18 @@ The background and main page, for the lavender_space theme, should be primarily 
 
 ## Light Calm Theme
 
-Swatches: `light_calm_theme.png`. A softer sibling of Cyan: light, quiet and low-contrast in the background, but with easy-to-read text and buttons.
+A clean, flat take on Cyan: quiet porcelain background, solid white surfaces and a refined cyan. No glass.
 
 | Role | Color | Use it for |
 | --- | --- | --- |
-| Background | `#f3f6f4` misty off-white | Page background and popup menus |
-| Text | `#2f3a38` deep slate green | All body text and the STARSTELL wordmark |
-| Primary | `#5e9384` sea-glass sage | Icons, links, selected states, glows |
-| Accent | `#3f645a` deep sage | Filled buttons (with `#f3f6f4` text) and emphasis |
-| Background glow | `#e9dcc8` warm sand | Faint glow on the page only, never for text or buttons |
+| Background | `#f6f8f9` cool porcelain | Page background and input fills |
+| Surface | `#ffffff` white | Cards, panels and popup menus |
+| Border | `#e1e8ea` hairline grey | 1px outlines on cards, panels and menus |
+| Text | `#1d2a2f` deep slate | All body text and the STARSTELL wordmark |
+| Muted text | `#5f6f75` slate grey | Secondary labels and hints |
+| Primary | `#1f97ad` cyan | Icons, links and selected states |
+| Accent | `#0f6b7c` deep cyan | Filled buttons (with white text) and emphasis |
 
-- **Background:** no stars. Soft sage and warm-sand glows behind the glass so the frosted windows have something to show through.
-- **Buttons and windows:** the same white frosted glass as Cyan. Filled buttons use the deep sage, not the lighter sage, so their labels stay readable.
+- **Background:** no stars and no glows; a plain, even color.
+- **Buttons and windows:** solid and flat, with no frosted blur, sheen or glossy reflection. Windows are white with a hairline border and a very soft shadow. Filled buttons use the deep cyan so their labels stay crisp.
 - **Font:** Trebuchet, with the Didot wordmark, the same as the other themes.

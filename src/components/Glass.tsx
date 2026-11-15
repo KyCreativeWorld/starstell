@@ -46,6 +46,8 @@ export function GlassCard({
  * with `overflow: 'hidden'`.
  */
 export function Reflection({ strength = 1 }: { strength?: number }) {
+  const { theme } = useTheme();
+  if (theme.flat) return null;
   const top = (0.42 * strength).toFixed(2);
   const bottom = (0.06 * strength).toFixed(2);
   return (
@@ -93,7 +95,11 @@ export function GlassButton({
         frosted,
         {
           backgroundColor: isPrimary ? theme.colors.buttonBg : theme.colors.glass,
-          borderColor: isPrimary ? 'rgba(255, 255, 255, 0.3)' : theme.colors.glassBorder,
+          borderColor: isPrimary
+            ? theme.flat
+              ? theme.colors.buttonBg
+              : 'rgba(255, 255, 255, 0.3)'
+            : theme.colors.glassBorder,
           borderTopColor: theme.colors.glassHighlight,
           opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
