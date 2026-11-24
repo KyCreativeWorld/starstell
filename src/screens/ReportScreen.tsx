@@ -34,8 +34,14 @@ interface Selection {
   bottleneckId: string | null;
 }
 
+/** A team (and optionally a bottleneck) to open, e.g. from search. A new object re-opens it. */
+export interface ReportFocus {
+  teamId: string;
+  bottleneckId?: string;
+}
+
 /** `active` is false while another tab is showing (pauses the sky animation). */
-export function ReportScreen({ active }: { active: boolean }) {
+export function ReportScreen({ active, focus }: { active: boolean; focus?: ReportFocus | null }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const { report, loaded, setReport, clearReport } = useReport();
@@ -51,6 +57,18 @@ export function ReportScreen({ active }: { active: boolean }) {
     setPrevReport(report);
     setSelection(null);
     setFilters(DEFAULT_FILTERS);
+  }
+
+  // Open whatever was picked from search, un-hiding its team if needed.
+  const [prevFocus, setPrevFocus] = useState(focus);
+  if (focus !== prevFocus) {
+    setPrevFocus(focus);
+    if (focus && report?.teams.some((t) => t.id === focus.teamId)) {
+      if (filters.hiddenTeams.includes(focus.teamId)) {
+        setFilters({ ...filters, hiddenTeams: filters.hiddenTeams.filter((t) => t !== focus.teamId) });
+      }
+      setSelection({ teamId: focus.teamId, bottleneckId: focus.bottleneckId ?? null });
+    }
   }
 
   const choosePdf = async () => {

@@ -30,7 +30,7 @@ export function Field({ label, hint, secret, ...inputProps }: FieldProps) {
         <TextInput
           {...inputProps}
           secureTextEntry={secret && !revealed}
-          autoCapitalize="none"
+          autoCapitalize={inputProps.autoCapitalize ?? 'none'}
           autoCorrect={false}
           spellCheck={false}
           placeholderTextColor={theme.colors.placeholder}
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 14,
   },
   input: {

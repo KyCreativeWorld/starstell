@@ -47,4 +47,7 @@ export const STORAGE_KEYS = {
   theme: 'starstell.theme',
   aiConfig: 'starstell.aiConfig',
   salesforceConfig: 'starstell.salesforceConfig',
-} as const;
+  dataFolder: 'starstell.dataFolder',
+  // v2: the layout changed to KPI tiles + charts, so older saved layouts are ignored.
+  dashboard: 'starstell.dashboard.v2',
+  profile: 'starstell.profile',} as const;

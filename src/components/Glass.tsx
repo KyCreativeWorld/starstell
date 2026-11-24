@@ -119,7 +119,7 @@ export function GlassButton({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     padding: 20,
     shadowOffset: { width: 0, height: 8 },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   button: {
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 20,

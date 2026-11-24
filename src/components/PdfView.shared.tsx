@@ -54,7 +54,7 @@ export function NoPdf({ onReplace, busy }: { onReplace: () => void; busy: boolea
 }
 
 export const pdfStyles = StyleSheet.create({
-  box: { flex: 1, borderRadius: 22, borderWidth: 1, overflow: 'hidden' },
+  box: { flex: 1, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, minHeight: 56 },
   fileName: { flex: 1, fontFamily: fonts.body, fontSize: 14, fontWeight: '700' },
 });

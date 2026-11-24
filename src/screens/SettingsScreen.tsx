@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { fonts } from '../theme/themes';
 import { GlassButton, GlassCard } from '../components/Glass';
@@ -7,6 +7,9 @@ import { Field } from '../components/Field';
 import { storage, STORAGE_KEYS } from '../storage';
 import { detectProvider } from '../aiProvider';
 import { AIConfig, EMPTY_AI, useAiConfig } from '../settings/AiConfigContext';
+import { folderProvider, useDataFolder, validateFolderUrl } from '../settings/DataFolderContext';
+import { initials, type Profile, useProfile } from '../settings/ProfileContext';
+import { Avatar } from '../components/AppHeader';
 
 interface SalesforceConfig {
   instanceUrl: string;
@@ -28,6 +31,36 @@ export function SettingsScreen() {
   const [sf, setSf] = useState<SalesforceConfig>(EMPTY_SF);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+
+  const { profile: savedProfile, loaded: profileLoaded, saveProfile } = useProfile();
+  const [profile, setProfile] = useState<Profile>(savedProfile);
+  const [profileStatus, setProfileStatus] = useState<Status>(null);
+  const [profileWasLoaded, setProfileWasLoaded] = useState(profileLoaded);
+  if (profileLoaded !== profileWasLoaded) {
+    setProfileWasLoaded(profileLoaded);
+    if (profileLoaded) setProfile(savedProfile);
+  }
+  const profileChanged =
+    profile.name.trim() !== savedProfile.name || profile.role.trim() !== savedProfile.role;
+
+  const handleSaveProfile = async () => {
+    try {
+      await saveProfile(profile);
+      setProfileStatus({ kind: 'success', message: 'Profile saved.' });
+    } catch {
+      setProfileStatus({ kind: 'error', message: 'Could not save. Please try again.' });
+    }
+  };
+
+  const { folderUrl, loaded: folderLoaded, saveFolderUrl } = useDataFolder();
+  const [folder, setFolder] = useState(folderUrl);
+  const [folderStatus, setFolderStatus] = useState<Status>(null);
+  const [savingFolder, setSavingFolder] = useState(false);
+  const [folderWasLoaded, setFolderWasLoaded] = useState(folderLoaded);
+  if (folderLoaded !== folderWasLoaded) {
+    setFolderWasLoaded(folderLoaded);
+    if (folderLoaded) setFolder(folderUrl);
+  }
 
   // If the saved config finishes loading after this screen opened, start the form from it.
   const [wasLoaded, setWasLoaded] = useState(loaded);
@@ -106,6 +139,32 @@ export function SettingsScreen() {
     setStatus({ kind: 'success', message: 'Saved connections cleared.' });
   };
 
+  const handleSaveFolder = async () => {
+    const error = validateFolderUrl(folder);
+    if (error) {
+      setFolderStatus({ kind: 'error', message: error });
+      return;
+    }
+    setSavingFolder(true);
+    try {
+      await saveFolderUrl(folder);
+      setFolder(folder.trim());
+      setFolderStatus({
+        kind: 'success',
+        message: folder.trim() ? 'Data folder saved.' : 'Data folder removed.',
+      });
+    } catch {
+      setFolderStatus({ kind: 'error', message: 'Could not save. Please try again.' });
+    } finally {
+      setSavingFolder(false);
+    }
+  };
+
+  const savedFolderProvider = folderUrl ? folderProvider(folderUrl) : null;
+  const folderHint = savedFolderProvider
+    ? `Linked to ${savedFolderProvider}. Share the folder so anyone with the link can view it.`
+    : 'A Google Drive, OneDrive, SharePoint, Dropbox or Box folder link.';
+
   const provider = detectProvider(ai.apiKey);
   const keyHint = !ai.apiKey.trim()
     ? 'The provider is detected automatically from the key.'
@@ -118,8 +177,48 @@ export function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={[styles.title, { color: c.text }]}>Settings</Text>
         <Text style={[styles.subtitle, { color: c.mutedText }]}>
-          Connections Starstell uses for chat and organizational data.
+          Your profile and the connections Starstell uses for chat, report data and organizational data.
         </Text>
+
+        <GlassCard style={styles.card}>
+          <View style={styles.profileHead}>
+            <Avatar initials={initials(profile.name)} size={52} />
+            <View style={styles.flex}>
+              <Text style={[styles.cardTitle, { color: c.text }]}>Profile</Text>
+              <Text style={[styles.cardSubtitle, styles.noMargin, { color: c.mutedText }]}>
+                Shown in the top right of every page.
+              </Text>
+            </View>
+          </View>
+          <Field
+            label="Name"
+            value={profile.name}
+            onChangeText={(name) => {
+              setProfile((prev) => ({ ...prev, name }));
+              setProfileStatus(null);
+            }}
+            placeholder="Your name"
+            autoCapitalize="words"
+          />
+          <Field
+            label="Role (optional)"
+            value={profile.role}
+            onChangeText={(role) => {
+              setProfile((prev) => ({ ...prev, role }));
+              setProfileStatus(null);
+            }}
+            placeholder="e.g. Operations Manager"
+          />
+          {profileStatus ? (
+            <Text
+              style={[styles.inlineStatus, { color: profileStatus.kind === 'success' ? c.success : c.danger }]}
+              accessibilityLiveRegion="polite"
+            >
+              {profileStatus.message}
+            </Text>
+          ) : null}
+          <GlassButton label="Save profile" onPress={handleSaveProfile} disabled={!profileChanged} />
+        </GlassCard>
 
         <GlassCard style={styles.card}>
           <Text style={[styles.cardTitle, { color: c.text }]}>AI Model</Text>
@@ -140,6 +239,49 @@ export function SettingsScreen() {
             onChangeText={(model) => setAi((prev) => ({ ...prev, model }))}
             placeholder={provider?.modelHint ?? 'Model name'}
           />
+        </GlassCard>
+
+        <GlassCard style={styles.card}>
+          <Text style={[styles.cardTitle, { color: c.text }]}>Report data</Text>
+          <Text style={[styles.cardSubtitle, { color: c.mutedText }]}>
+            A shared folder of CSV files with the information used to build the report.
+          </Text>
+          <Field
+            label="Data folder link"
+            value={folder}
+            onChangeText={(v) => {
+              setFolder(v);
+              setFolderStatus(null);
+            }}
+            placeholder="https://drive.google.com/drive/folders/…"
+            keyboardType="url"
+            hint={folderHint}
+          />
+          {folderStatus ? (
+            <Text
+              style={[styles.inlineStatus, { color: folderStatus.kind === 'success' ? c.success : c.danger }]}
+              accessibilityLiveRegion="polite"
+            >
+              {folderStatus.message}
+            </Text>
+          ) : null}
+          <View style={styles.actions}>
+            {folderUrl ? (
+              <GlassButton
+                label="Open folder"
+                variant="ghost"
+                onPress={() => Linking.openURL(folderUrl).catch(() => {})}
+                style={styles.flex}
+              />
+            ) : null}
+            <GlassButton
+              label="Save folder"
+              onPress={handleSaveFolder}
+              loading={savingFolder}
+              disabled={folder.trim() === folderUrl}
+              style={styles.flex}
+            />
+          </View>
         </GlassCard>
 
         <GlassCard style={styles.card}>
@@ -203,6 +345,9 @@ const styles = StyleSheet.create({
   card: { marginBottom: 18 },
   cardTitle: { fontFamily: fonts.body, fontSize: 19, fontWeight: '700' },
   cardSubtitle: { fontFamily: fonts.body, fontSize: 13, marginTop: 4, marginBottom: 16 },
+  profileHead: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+  noMargin: { marginTop: 2, marginBottom: 0 },
+  inlineStatus: { fontFamily: fonts.body, fontSize: 13, marginTop: -4, marginBottom: 12 },
   status: { fontFamily: fonts.body, fontSize: 14, textAlign: 'center', marginBottom: 12 },
   actions: { flexDirection: 'row', gap: 12 },
   saveButton: { flex: 2 },

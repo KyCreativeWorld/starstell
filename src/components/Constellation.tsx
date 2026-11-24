@@ -848,7 +848,7 @@ function makeBackdrop(width: number, height: number) {
 const styles = StyleSheet.create({
   sky: {
     flex: 1,
-    borderRadius: 22,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
     // Web: no text selection while dragging, and let the map (not the browser) handle pinches.

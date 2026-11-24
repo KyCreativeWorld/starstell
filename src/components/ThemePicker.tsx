@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { fonts, frosted, themeList } from '../theme/themes';
 import { Reflection } from './Glass';
+import { Icon } from './Icon';
 
-/** Small "Theme" button that opens a dropdown of available themes. */
-export function ThemePicker({ compact = false }: { compact?: boolean }) {
+/**
+ * "Theme" button that opens a menu of available themes. The `sidebar` variant
+ * is a navigation-style row for the left sidebar, with the menu opening beside it.
+ */
+export function ThemePicker({
+  compact = false,
+  variant = 'pill',
+  menuPosition,
+}: {
+  compact?: boolean;
+  variant?: 'pill' | 'sidebar';
+  /** Where the menu opens (absolute position). Defaults to the top right. */
+  menuPosition?: ViewStyle;
+}) {
   const { theme, setThemeName } = useTheme();
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -17,8 +30,22 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
     borderTopColor: theme.colors.glassHighlight,
   };
 
-  return (
-    <>
+  const c = theme.colors;
+  const trigger =
+    variant === 'sidebar' ? (
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Change theme"
+        style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+          styles.sideItem,
+          { backgroundColor: pressed || hovered ? c.sidebarActive : 'transparent' },
+        ]}
+      >
+        <Icon name="palette" color={c.sidebarMuted} size={compact ? 24 : 28} />
+        <Text style={[styles.sideText, compact && styles.sideTextCompact, { color: c.sidebarMuted }]}>Theme</Text>
+      </Pressable>
+    ) : (
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
@@ -26,10 +53,15 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
         style={({ pressed }) => [styles.pill, frosted, pillStyle, { opacity: pressed ? 0.75 : 1 }]}
       >
         <Reflection strength={theme.glassReflection} />
-        <Swatch color={theme.colors.primary} border={theme.colors.glassBorder} />
-        {compact ? null : <Text style={[styles.pillText, { color: theme.colors.text }]}>Theme</Text>}
-        <Text style={[styles.caret, { color: theme.colors.mutedText }]}>▾</Text>
+        <Swatch color={c.primary} border={c.glassBorder} />
+        {compact ? null : <Text style={[styles.pillText, { color: c.text }]}>Theme</Text>}
+        <Text style={[styles.caret, { color: c.mutedText }]}>▾</Text>
       </Pressable>
+    );
+
+  return (
+    <>
+      {trigger}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
@@ -39,8 +71,7 @@ export function ThemePicker({ compact = false }: { compact?: boolean }) {
               frosted,
               {
                 // Drops down from the Theme button at the right end of the top bar.
-                top: insets.top + 60,
-                right: 16,
+                ...(menuPosition ?? { top: insets.top + 60, right: 16 }),
                 backgroundColor: theme.colors.menu,
                 borderColor: theme.colors.glassBorder,
                 shadowColor: theme.colors.shadow,
@@ -106,13 +137,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     overflow: 'hidden',
   },
+  sideItem: { alignItems: 'center', gap: 6, borderRadius: 10, paddingTop: 12, paddingBottom: 10, paddingHorizontal: 2 },
+  sideText: { fontFamily: fonts.body, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  sideTextCompact: { fontSize: 10.5 },
   pillText: { fontFamily: fonts.body, fontSize: 13, fontWeight: '600' },
   caret: { fontSize: 13 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
   menu: {
     position: 'absolute',
     width: 240,
-    borderRadius: 16,
+    borderRadius: 10,
     borderWidth: 1,
     padding: 8,
     shadowOffset: { width: 0, height: 8 },

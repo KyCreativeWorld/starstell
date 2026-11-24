@@ -27,3 +27,9 @@ A clean, flat take on Cyan: quiet porcelain background, solid white surfaces and
 - **Background:** no stars and no glows; a plain, even color.
 - **Buttons and windows:** solid and flat, with no frosted blur, sheen or glossy reflection. Windows are white with a hairline border and a very soft shadow. Filled buttons use the deep cyan so their labels stay crisp.
 - **Font:** Trebuchet, with the Didot wordmark, the same as the other themes.
+## Cyan Space Theme
+
+Identical to Light Calm (same colors, flat surfaces and cyan sidebar), with one difference: chart graphics look like pieces of the night sky.
+
+- **Charts:** bars, pie slices and the area under line graphs are filled near-black (`#0b111e`, with slightly lighter navy shades to tell pie slices apart). Very small white stars (about 1px) are scattered inside each mark and twinkle in staggered waves. Lines themselves are black. Secondary series (e.g. upfront cost next to savings) use slate grey `#7d8796`.
+- **Everything else:** no star field in the page background and no glass; the page stays clean and corporate.
