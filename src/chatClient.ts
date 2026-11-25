@@ -9,7 +9,7 @@ const SYSTEM_PROMPT =
   'it, say what information you would need instead of guessing.';
 
 // Models that accept server-side refusal fallbacks (`fallbacks: "default"`).
-const FALLBACK_MODELS = new Set([
+export const FALLBACK_MODELS = new Set([
   'claude-fable-5-1',
   'claude-opus-5-5',
   'claude-opus-5',
@@ -138,7 +138,7 @@ export class ChatClient {
   }
 }
 
-function describeAnthropicError(error: unknown, model: string): string {
+export function describeAnthropicError(error: unknown, model: string): string {
   // Most specific first: APIConnectionError and the status errors all extend APIError.
   if (error instanceof Anthropic.AuthenticationError) return 'Anthropic rejected the API key. Check that it is correct and active.';
   if (error instanceof Anthropic.PermissionDeniedError) return "This API key doesn't have permission for that request.";

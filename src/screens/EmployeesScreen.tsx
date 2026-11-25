@@ -383,7 +383,7 @@ function EmployeeDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* ---- basic data ---- */}
       <GlassCard style={styles.card}>
-        <Text style={[styles.cardTitle, { color: c.text }]}>Basic data</Text>
+        <Text style={[styles.cardTitle, { color: c.text }]}>Employee Data</Text>
         <View style={styles.stats}>
           <Stat label="Team" value={s.teamName} sub={s.employee.role} />
           <Stat

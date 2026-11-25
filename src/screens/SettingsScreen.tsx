@@ -10,6 +10,8 @@ import { AIConfig, EMPTY_AI, useAiConfig } from '../settings/AiConfigContext';
 import { folderProvider, useDataFolder, validateFolderUrl } from '../settings/DataFolderContext';
 import { initials, type Profile, useProfile } from '../settings/ProfileContext';
 import { Avatar } from '../components/AppHeader';
+import { DriveError, driveAvailable, pickDriveFolder } from '../audit/googleDrive';
+import { googleDriveConfigured } from '../audit/googleConfig';
 
 interface SalesforceConfig {
   instanceUrl: string;
@@ -160,6 +162,23 @@ export function SettingsScreen() {
     }
   };
 
+  // Picking the folder with Google's picker is also what lets the app write audit results into it.
+  const handlePickDriveFolder = async () => {
+    setFolderStatus(null);
+    try {
+      const picked = await pickDriveFolder();
+      if (!picked) return;
+      await saveFolderUrl(picked.url);
+      setFolder(picked.url);
+      setFolderStatus({ kind: 'success', message: `Linked to “${picked.name}”. Audit results will be saved there.` });
+    } catch (e) {
+      setFolderStatus({
+        kind: 'error',
+        message: e instanceof DriveError ? e.message : "Couldn't open Google Drive. Try again.",
+      });
+    }
+  };
+
   const savedFolderProvider = folderUrl ? folderProvider(folderUrl) : null;
   const folderHint = savedFolderProvider
     ? `Linked to ${savedFolderProvider}. Share the folder so anyone with the link can view it.`
@@ -282,6 +301,9 @@ export function SettingsScreen() {
               style={styles.flex}
             />
           </View>
+          {driveAvailable && googleDriveConfigured() ? (
+            <GlassButton label="Choose in Google Drive" variant="ghost" onPress={handlePickDriveFolder} style={styles.pickDrive} />
+          ) : null}
         </GlassCard>
 
         <GlassCard style={styles.card}>
@@ -350,5 +372,6 @@ const styles = StyleSheet.create({
   inlineStatus: { fontFamily: fonts.body, fontSize: 13, marginTop: -4, marginBottom: 12 },
   status: { fontFamily: fonts.body, fontSize: 14, textAlign: 'center', marginBottom: 12 },
   actions: { flexDirection: 'row', gap: 12 },
+  pickDrive: { marginTop: 10 },
   saveButton: { flex: 2 },
 });

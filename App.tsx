@@ -5,7 +5,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { StarField } from './src/components/StarField';
 import { Sidebar, SIDEBAR_COLLAPSE_BELOW, type TabName } from './src/components/Sidebar';
-import { AppHeader, type SearchTarget } from './src/components/AppHeader';
+import { AppHeader } from './src/components/AppHeader';
+import type { SearchTarget } from './src/search/searchIndex';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { ReportScreen, type ReportFocus } from './src/screens/ReportScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
