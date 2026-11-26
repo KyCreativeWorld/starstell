@@ -21,6 +21,10 @@ export async function pickDriveFolder(): Promise<DriveFolder | null> {
   throw new DriveError(NOT_YET);
 }
 
-export async function saveToDrive(_parentFolderUrl: string, _runName: string, _files: DriveFile[]): Promise<DriveFolder> {
+export async function createDriveFolder(_parentFolderUrl: string, _name: string): Promise<DriveFolder> {
+  throw new DriveError(NOT_YET);
+}
+
+export async function uploadToDrive(_folderId: string, _files: DriveFile[]): Promise<void> {
   throw new DriveError(NOT_YET);
 }

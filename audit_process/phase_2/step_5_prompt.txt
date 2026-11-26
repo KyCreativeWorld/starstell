@@ -1,0 +1,9 @@
+STEP 5: AGGREGATE AND COMPARE TEAMS
+
+Do Step 5 only (Section 5 of the brief), using the Step 4 output provided: every
+team's measures, plus working_person_values, the person-level values Step 4
+computed. Do not recompute Step 4 measures. Use the person-level values only to
+run the comparisons; never copy them into your output.
+
+Return a JSON object with these sections from Section 7: step5_comparisons,
+suppression_log, hypotheses_for_step7, open_questions, narrative_summary.

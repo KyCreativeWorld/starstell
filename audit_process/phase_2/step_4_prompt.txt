@@ -1,0 +1,18 @@
+STEP 4: TIME ALLOCATION AND WAIT TIME
+
+Do the field map and readiness checks (Sections 2 and 3 of the brief) and Step 4
+(Section 4) only, for the team or teams in this prompt. Step 5 compares teams
+later, in a separate prompt, using your output.
+
+Each prompt holds one or more teams' Phase 1 timelines and task records, plus
+their raw records with names and emails replaced by person IDs. Compute every
+measure from these records.
+
+Return a JSON object with these sections from Section 7, for the teams in this
+prompt: run_metadata, step4_measures, suppression_log, open_questions.
+
+Also return working_person_values: one entry per person and measure,
+{"team_id", "measure_id", "person_id", "value", "unit"}, using the
+person-level values you computed. Step 5 needs them for its rank-based tests.
+The app passes this section to Step 5 only and never saves or shows it, so the
+rule against person-level values in the output does not apply to it alone.

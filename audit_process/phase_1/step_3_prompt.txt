@@ -1,0 +1,10 @@
+STEP 3: TASK RECORDS
+
+Do Step 3 only (Section 5 of the brief), with the evidence and confidence rules
+in Section 6. Step 1 has already run: identities are resolved, and names and
+emails in the records are replaced by person IDs. Use those IDs as actor_id.
+
+The app groups events that share a work-item key and sends a few groups per
+prompt. Create task records only from the events in the prompt, and never cite
+a handle that is not in it. Return the JSON the PIPELINE TASK asks for in place
+of the full output contract in Section 7.

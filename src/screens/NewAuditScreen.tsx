@@ -8,10 +8,11 @@ import { Icon } from '../components/Icon';
 import { type AuditFolder, FolderPickError, pickAuditFolder, releaseAuditFolder } from '../audit/folderPicker';
 import { MAX_AUDIT_FILES } from '../audit/folderPicker.types';
 import { readAuditFiles } from '../audit/readAuditFiles';
-import { AuditRunError, runPhase1 } from '../audit/phase1/runPhase1';
-import { canDownload, downloadFiles, phase1Outputs } from '../audit/phase1/outputs';
-import { DriveError, driveAvailable, getDriveToken, preloadDrive, saveToDrive } from '../audit/googleDrive';
-import type { DriveFile } from '../audit/googleDrive.types';
+import { AuditRunError, createModelClient } from '../audit/pipeline/modelClient';
+import { runAuditPipeline, type StepStatus } from '../audit/pipeline/runPipeline';
+import { canDownload, downloadFiles } from '../audit/download';
+import { createDriveFolder, DriveError, driveAvailable, getDriveToken, preloadDrive, uploadToDrive } from '../audit/googleDrive';
+import type { DriveFile, DriveFolder } from '../audit/googleDrive.types';
 import { driveFolderId, googleDriveConfigured } from '../audit/googleConfig';
 import { useAiConfig } from '../settings/AiConfigContext';
 import { useDataFolder } from '../settings/DataFolderContext';
@@ -23,15 +24,26 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
 /** Where a running audit is, shown while it works. */
 type Progress = { message: string } | null;
 
-/** A finished run: its files, and where they ended up. */
+/** A finished (or stopped) run: what each step did, its files, and where they ended up. */
 interface Finished {
   name: string;
-  files: DriveFile[];
-  driveUrl?: string;
-  /** Why the results aren't in Drive, if they aren't. */
+  steps: StepStatus[];
+  /** Each saved phase's files, in order. */
+  phases: { phase: number; files: DriveFile[]; savedToDrive: boolean }[];
+  /** The run's Drive folder, once created. */
+  driveFolder?: DriveFolder;
+  /** Why some results aren't in Drive, if they aren't. */
   driveProblem?: string;
-  warning?: string;
+  /** Why the run stopped early, if it did. */
+  error?: string;
 }
+
+const STATUS_LABEL: Record<StepStatus['status'], string> = {
+  done: 'Done',
+  skipped: 'Skipped',
+  failed: 'Failed',
+  'not run': 'Not run',
+};
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -105,11 +117,37 @@ export function NewAuditScreen() {
       setStatus({ kind: 'error', message: 'Add an AI API key in Settings before running an audit.' });
       return;
     }
+    let client;
+    try {
+      client = createModelClient(savedAi.apiKey, savedAi.model);
+    } catch (e) {
+      setStatus({ kind: 'error', message: e instanceof AuditRunError ? e.message : 'Check the AI settings.' });
+      return;
+    }
     setStatus(null);
     setFinished(null);
     const startedAt = new Date();
     const controller = new AbortController();
     abortRef.current = controller;
+    const run: Finished = { name: auditName, steps: [], phases: [] };
+
+    // Saves one phase's files: into the run's Drive folder (made on first use), or kept for later.
+    const savePhase = async (phase: number, files: DriveFile[]) => {
+      const entry = { phase, files, savedToDrive: false };
+      run.phases.push(entry);
+      if (!driveTarget || run.driveProblem) return;
+      try {
+        if (!run.driveFolder) {
+          const stamp = startedAt.toISOString().slice(0, 16).replace('T', ' ').replace(':', '.');
+          run.driveFolder = await createDriveFolder(driveTarget, `${auditName} — audit — ${stamp}`);
+        }
+        await uploadToDrive(run.driveFolder.id, files);
+        entry.savedToDrive = true;
+      } catch (e) {
+        // Keep going: the audit continues, and the results can be saved or downloaded at the end.
+        run.driveProblem = e instanceof DriveError ? e.message : "Couldn't save to Google Drive.";
+      }
+    };
 
     try {
       // Sign in first, while this is still a button press: browsers block the popup later.
@@ -124,57 +162,63 @@ export function NewAuditScreen() {
       );
       if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      const result = await runPhase1({
-        apiKey: savedAi.apiKey,
-        model: savedAi.model,
+      const result = await runAuditPipeline({
+        client,
         auditName,
         data,
         signal: controller.signal,
-        onProgress: (p) =>
-          setProgress({
-            message:
-              p.step === 'counting'
-                ? 'Checking the size of the data…'
-                : `Running Phase 1 (${p.estimated ? '~' : ''}${Math.round(p.inputTokens / 1000)}K tokens of data) · ` +
-                  (p.outputChars ? `${Math.round(p.outputChars / 1000)}K characters written` : 'thinking…'),
-          }),
+        onProgress: (message) => setProgress({ message }),
+        onPhaseComplete: savePhase,
       });
-
-      const outputs = phase1Outputs({ auditName, startedAt, data, result });
-      const done: Finished = { name: auditName, files: outputs.files, warning: outputs.warning };
-
-      if (driveTarget) {
-        setProgress({ message: 'Saving to Google Drive…' });
-        try {
-          const stamp = startedAt.toISOString().slice(0, 16).replace('T', ' ').replace(':', '.');
-          const saved = await saveToDrive(driveTarget, `${auditName} — Phase 1 — ${stamp}`, outputs.files);
-          done.driveUrl = saved.url;
-        } catch (e) {
-          done.driveProblem = e instanceof DriveError ? e.message : "Couldn't save to Google Drive.";
-        }
-      } else {
-        done.driveProblem = !driveAvailable
-          ? 'Saving to Google Drive works in the web version for now.'
-          : !googleDriveConfigured()
-            ? 'Google Drive is not set up for this app yet (see GOOGLE_DRIVE_SETUP.md).'
-            : 'Set a Google Drive data folder in Settings to save results there.';
-      }
-      setFinished(done);
+      run.steps = result.steps;
     } catch (e) {
       if (controller.signal.aborted) {
         setStatus({ kind: 'error', message: 'Audit cancelled.' });
       } else {
-        setStatus({
-          kind: 'error',
-          message:
-            e instanceof AuditRunError || e instanceof DriveError || e instanceof FolderPickError
-              ? e.message
-              : 'The audit stopped because of an unexpected error. Try again.',
-        });
+        run.error =
+          e instanceof AuditRunError || e instanceof DriveError || e instanceof FolderPickError
+            ? e.message
+            : 'The audit stopped because of an unexpected error.';
       }
     } finally {
       abortRef.current = null;
       setProgress(null);
+    }
+
+    if (!run.phases.length && !run.steps.length) {
+      if (run.error) setStatus({ kind: 'error', message: run.error });
+      return;
+    }
+    if (!driveTarget) {
+      run.driveProblem = !driveAvailable
+        ? 'Saving to Google Drive works in the web version for now.'
+        : !googleDriveConfigured()
+          ? 'Google Drive is not set up for this app yet (see GOOGLE_DRIVE_SETUP.md).'
+          : 'Set a Google Drive data folder in Settings to save results there.';
+    }
+    setFinished({ ...run });
+  };
+
+  /** Retries saving any phases that didn't reach Drive. Runs from a button press, so sign-in can open. */
+  const saveRemaining = async () => {
+    if (!finished || !driveTarget) return;
+    const next: Finished = { ...finished, phases: finished.phases.map((p) => ({ ...p })), driveProblem: undefined };
+    setProgress({ message: 'Saving to Google Drive…' });
+    try {
+      await getDriveToken();
+      if (!next.driveFolder) {
+        next.driveFolder = await createDriveFolder(driveTarget, `${next.name} — audit — ${new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '.')}`);
+      }
+      for (const p of next.phases) {
+        if (p.savedToDrive) continue;
+        await uploadToDrive(next.driveFolder.id, p.files);
+        p.savedToDrive = true;
+      }
+    } catch (e) {
+      next.driveProblem = e instanceof DriveError ? e.message : "Couldn't save to Google Drive.";
+    } finally {
+      setProgress(null);
+      setFinished(next);
     }
   };
 
@@ -275,32 +319,58 @@ export function NewAuditScreen() {
 
         {finished ? (
           <GlassCard style={styles.card}>
-            <Text style={[styles.cardTitle, { color: c.text }]}>Phase 1 finished</Text>
-            {finished.warning ? (
-              <Text style={[styles.resultText, { color: c.danger }]}>{finished.warning}</Text>
-            ) : (
-              <Text style={[styles.resultText, { color: c.text }]}>
-                Timelines and task records for “{finished.name}” are ready.
+            <Text style={[styles.cardTitle, { color: c.text }]}>
+              {finished.error ? 'Audit stopped' : 'Audit finished'}
+            </Text>
+            {finished.error ? <Text style={[styles.resultText, { color: c.danger }]}>{finished.error}</Text> : null}
+
+            {finished.steps.length ? (
+              <View style={styles.stepList}>
+                {finished.steps.map((s) => (
+                  <View key={s.step} style={styles.stepRow}>
+                    <Text style={[styles.stepName, { color: c.text }]} numberOfLines={2}>
+                      Phase {s.phase} · Step {s.step}: {s.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.stepState,
+                        { color: s.status === 'done' ? c.success : s.status === 'failed' ? c.danger : c.mutedText },
+                      ]}
+                    >
+                      {STATUS_LABEL[s.status]}
+                      {s.prompts ? ` · ${s.prompts} prompt${s.prompts === 1 ? '' : 's'}` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {finished.phases.length ? (
+              <Text style={[styles.resultText, { color: c.mutedText }]}>
+                Saved after {finished.phases.map((p) => `Phase ${p.phase}`).join(', ')}
+                {finished.phases.every((p) => p.savedToDrive) ? ' to Google Drive.' : '.'}
               </Text>
-            )}
-            {finished.driveUrl ? (
-              <Text style={[styles.resultText, { color: c.success }]}>Saved to a new folder in Google Drive.</Text>
-            ) : finished.driveProblem ? (
+            ) : null}
+            {finished.driveProblem ? (
               <Text style={[styles.resultText, { color: c.mutedText }]}>Not saved to Drive: {finished.driveProblem}</Text>
             ) : null}
+
             <View style={styles.resultActions}>
-              {finished.driveUrl ? (
+              {finished.driveFolder ? (
                 <GlassButton
                   label="Open in Drive"
-                  onPress={() => Linking.openURL(finished.driveUrl!).catch(() => {})}
+                  onPress={() => Linking.openURL(finished.driveFolder!.url).catch(() => {})}
                   style={styles.flex}
                 />
               ) : null}
-              {canDownload ? (
+              {driveTarget && finished.phases.some((p) => !p.savedToDrive) ? (
+                <GlassButton label="Save to Drive" onPress={saveRemaining} disabled={running} style={styles.flex} />
+              ) : null}
+              {canDownload && finished.phases.length ? (
                 <GlassButton
                   label="Download results"
-                  variant={finished.driveUrl ? 'ghost' : 'primary'}
-                  onPress={() => downloadFiles(finished.files, finished.name)}
+                  variant="ghost"
+                  onPress={() => downloadFiles(finished.phases.flatMap((p) => p.files), finished.name)}
                   style={styles.flex}
                 />
               ) : null}
@@ -331,7 +401,7 @@ export function NewAuditScreen() {
             <GlassButton label="Start audit" onPress={start} disabled={!folder} />
             <Text style={[styles.destination, { color: c.mutedText }]}>
               {driveTarget
-                ? 'Results will be saved to a new folder inside your Google Drive data folder.'
+                ? 'Runs every step that has a prompt, one at a time, and saves to a new folder in your Google Drive data folder after each phase.'
                 : canDownload
                   ? 'Results can be downloaded when the audit finishes. Set a Google Drive data folder in Settings to save them there.'
                   : 'Saving results works in the web version for now.'}
@@ -387,5 +457,9 @@ const styles = StyleSheet.create({
   progressText: { fontFamily: fonts.body, fontSize: 14, flexShrink: 1 },
   destination: { fontFamily: fonts.body, fontSize: 12.5, textAlign: 'center', marginTop: 10 },
   resultText: { fontFamily: fonts.body, fontSize: 14, marginBottom: 8 },
-  resultActions: { flexDirection: 'row', gap: 12, marginTop: 6 },
+  resultActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6 },
+  stepList: { gap: 6, marginBottom: 12 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepName: { flex: 1, fontFamily: fonts.body, fontSize: 13 },
+  stepState: { fontFamily: fonts.body, fontSize: 12.5, fontWeight: '600' },
 });

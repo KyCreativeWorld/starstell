@@ -71,11 +71,14 @@ Rebuild (`npm run build:html`) and push.
 
 ## 8. Choose the folder in the app (each user, once)
 
-In Starstell, go to **Settings → Report data → Choose in Google Drive** and pick the folder. That saves it as the data folder and lets Starstell write into it. Each audit then creates a new subfolder there with:
+In Starstell, go to **Settings → Report data → Choose in Google Drive** and pick the folder. That saves it as the data folder and lets Starstell write into it.
 
-- `phase_1_output.json`: the Phase 1 timelines and task records.
-- `phase_1_run_log.json`: which files were used or skipped, the model, and token usage.
+Each audit creates one new subfolder there. After each phase finishes, the app adds that phase's files:
 
-If the model's reply isn't valid JSON, the app saves `phase_1_output_raw.txt` instead of `phase_1_output.json`.
+- `phase_<P>_step_<S>_output.json`: one per step that ran in the phase.
+- `phase_<P>_log.json`: which steps ran or were skipped, every prompt sent (with token usage), and, for Phase 1, which files were used or skipped.
+- `phase_<P>_step_<S>_…_raw.txt`: only when a prompt's reply wasn't valid JSON even after a retry, so a person can read it.
+
+If saving fails partway through, for example because the Google sign-in expired on a long run, the audit keeps going. A **Save to Drive** button then appears at the end.
 
 A folder pasted as a link without being picked can't be written to: the app will say so and point back to this button.

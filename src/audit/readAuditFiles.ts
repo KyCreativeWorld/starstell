@@ -1,12 +1,15 @@
 /**
- * Turns the files in an audit folder into plain-text records the model can read
- * and cite. Every record gets a short evidence handle the model must quote back
- * (the Phase 1 brief forbids it from making handles up):
+ * Turns the files in an audit folder into records the model can read and cite.
+ * Every record gets a short evidence handle the model must quote back (the
+ * briefs forbid it from making handles up):
  *
  *   F3:R12  file 3, data row 12 (CSV / TSV)
  *   F2:E4   file 2, calendar event 4 (.ics)
  *   F5:B9   file 5, text block 9 (PDF)
  *   F1:L30  file 1, line 30 (other text files)
+ *
+ * Records are kept separate (not one blob per file) so the audit pipeline can
+ * group them by person, project or team and send each group in its own prompt.
  *
  * Files the app can't read yet (Excel, Word, images…) are listed as skipped with
  * the reason, never silently dropped.
@@ -18,15 +21,27 @@ import { PdfDocument } from '../report/pdf/pdfDocument';
 import { extractLayout } from '../report/pdf/pdfLayout';
 import { buildBlocks } from '../report/pdf/pdfStructure';
 
+export interface AuditRecord {
+  /** Evidence handle, e.g. "F3:R12". */
+  handle: string;
+  /** The record as the model sees it (for CSV: the raw row). */
+  text: string;
+  /** CSV/TSV only: the row's cells, keyed by column name. */
+  cells?: Record<string, string>;
+}
+
 export interface ReadFile {
   /** "F1", "F2", … — the prefix of every handle from this file. */
   id: string;
   path: string;
   kind: 'csv' | 'ics' | 'pdf' | 'text';
-  /** Number of records (rows, events, blocks or lines) given handles. */
-  records: number;
-  /** The file as the model sees it, with handles. */
-  text: string;
+  /** CSV/TSV only: the header row, as written. */
+  header?: string;
+  /** CSV/TSV only: column names, in order. */
+  columns?: string[];
+  /** CSV/TSV only: the separator. */
+  separator?: string;
+  records: AuditRecord[];
 }
 
 export interface SkippedFile {
@@ -81,11 +96,10 @@ export async function readAuditFiles(
     }
     const id = `F${out.length + 1}`;
     try {
-      const bytes = await readBytes(f.uri);
-      const converted = convert(id, f.name, bytes);
+      const converted = convert(id, f.name, await readBytes(f.uri));
       if (!converted) {
         skipped.push({ path: f.path, reason: 'Unrecognized file type. Supported: CSV, TSV, ICS, PDF, TXT, MD, JSON.' });
-      } else if (!converted.records) {
+      } else if (!converted.records.length) {
         skipped.push({ path: f.path, reason: 'No readable content (a PDF may be a scan).' });
       } else {
         out.push({ id, path: f.path, ...converted });
@@ -98,28 +112,29 @@ export async function readAuditFiles(
   return { files: out, skipped };
 }
 
-function convert(id: string, name: string, bytes: Uint8Array): Omit<ReadFile, 'id' | 'path'> | null {
+type Converted = Omit<ReadFile, 'id' | 'path'>;
+
+function convert(id: string, name: string, bytes: Uint8Array): Converted | null {
   if (/\.(csv|tsv)$/i.test(name)) return delimited(id, decode(bytes), /\.tsv$/i.test(name) ? '\t' : ',');
   if (/\.ics$/i.test(name)) return calendar(id, decode(bytes));
-  if (/\.pdf$/i.test(name)) return pdf(id, bytes);
+  if (/\.pdf$/i.test(name)) return { kind: 'pdf', records: pdfRecords(id, bytes) };
   if (TEXT_EXT.test(name)) return lines(id, decode(bytes));
   return null;
 }
 
-/** CSV/TSV: the header row, then each data row with a handle column in front. */
-function delimited(id: string, text: string, sep: string) {
-  const rows = splitRows(text);
-  while (rows.length && !rows[rows.length - 1].trim()) rows.pop();
-  if (!rows.length) return { kind: 'csv' as const, records: 0, text: '' };
+/** CSV/TSV: one record per data row, with its cells parsed. */
+function delimited(id: string, text: string, sep: string): Converted {
+  const rows = splitRows(text).filter((r) => r.trim());
+  if (!rows.length) return { kind: 'csv', records: [] };
   const [header, ...data] = rows;
-  const out = [`handle${sep}${header}`];
-  let n = 0;
-  for (const row of data) {
-    if (!row.trim()) continue;
-    n++;
-    out.push(`${id}:R${n}${sep}${row}`);
-  }
-  return { kind: 'csv' as const, records: n, text: out.join('\n') };
+  const columns = parseCells(header, sep).map((c) => c.trim());
+  const records = data.map((row, i) => {
+    const values = parseCells(row, sep);
+    const cells: Record<string, string> = {};
+    columns.forEach((col, j) => (cells[col] = (values[j] ?? '').trim()));
+    return { handle: `${id}:R${i + 1}`, text: row, cells };
+  });
+  return { kind: 'csv', header, columns, separator: sep, records };
 }
 
 /** Splits CSV text into rows at line breaks outside quoted cells (a quoted cell may span lines). */
@@ -139,43 +154,75 @@ function splitRows(text: string): string[] {
   return rows;
 }
 
-/** iCalendar: one record per VEVENT, with folded lines unfolded. */
-function calendar(id: string, text: string) {
-  const unfolded = text.replace(/\r?\n[ \t]/g, '');
-  const events = unfolded.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
-  const out = events.map((ev, i) => {
-    const props = ev
-      .split(/\r?\n/)
-      .filter((l) => l && !/^(BEGIN|END):VEVENT/.test(l))
-      .join(' | ');
-    return `[${id}:E${i + 1}] ${props}`;
-  });
-  return { kind: 'ics' as const, records: events.length, text: out.join('\n') };
+/** Splits one CSV row into cell values, honoring quotes and doubled quotes. */
+function parseCells(row: string, sep: string): string[] {
+  const cells: string[] = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (quoted) {
+      if (ch === '"' && row[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') quoted = false;
+      else cur += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === sep) {
+      cells.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  cells.push(cur);
+  return cells;
 }
 
-/** Text PDF: one record per heading, paragraph or table row. */
-function pdf(id: string, bytes: Uint8Array) {
+/** iCalendar: one record per VEVENT, with folded lines unfolded. */
+function calendar(id: string, text: string): Converted {
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+  const events = unfolded.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+  const records = events.map((ev, i) => ({
+    handle: `${id}:E${i + 1}`,
+    text: ev
+      .split(/\r?\n/)
+      .filter((l) => l && !/^(BEGIN|END):VEVENT/.test(l))
+      .join(' | '),
+  }));
+  return { kind: 'ics', records };
+}
+
+/** Text PDF: one record per heading, paragraph or table row. Throws if the PDF can't be read. */
+export function pdfRecords(id: string, bytes: Uint8Array): AuditRecord[] {
   const blocks = buildBlocks(extractLayout(new PdfDocument(bytes)));
-  const out: string[] = [];
-  let n = 0;
+  const out: AuditRecord[] = [];
   for (const b of blocks) {
     if (b.kind === 'table') {
-      for (const r of b.rows) out.push(`[${id}:B${++n}] ${r.join(' | ')}`);
+      for (const r of b.rows) out.push({ handle: `${id}:B${out.length + 1}`, text: r.join(' | ') });
     } else {
-      out.push(`[${id}:B${++n}] ${b.kind === 'heading' ? '# ' : ''}${b.text}`);
+      out.push({ handle: `${id}:B${out.length + 1}`, text: `${b.kind === 'heading' ? '# ' : ''}${b.text}` });
     }
   }
-  return { kind: 'pdf' as const, records: n, text: out.join('\n') };
+  return out;
 }
 
 /** Any other text: one record per non-empty line. */
-function lines(id: string, text: string) {
-  const out: string[] = [];
-  let n = 0;
+function lines(id: string, text: string): Converted {
+  const records: AuditRecord[] = [];
   text.split(/\r?\n/).forEach((l, i) => {
-    if (!l.trim()) return;
-    n++;
-    out.push(`[${id}:L${i + 1}] ${l}`);
+    if (l.trim()) records.push({ handle: `${id}:L${i + 1}`, text: l });
   });
-  return { kind: 'text' as const, records: n, text: out.join('\n') };
+  return { kind: 'text', records };
+}
+
+/** One record as the model sees it: CSV rows keep their raw form after the handle. */
+export function recordLine(file: ReadFile, r: AuditRecord): string {
+  return file.kind === 'csv' ? `${r.handle}${file.separator}${r.text}` : `[${r.handle}] ${r.text}`;
+}
+
+/** A set of records from one file as a block of text, with the CSV header if there is one. */
+export function fileBlock(file: ReadFile, records: AuditRecord[]): string {
+  const head = file.kind === 'csv' ? `handle${file.separator}${file.header}\n` : '';
+  return `<file id="${file.id}" path="${file.path.replace(/"/g, '&quot;')}" kind="${file.kind}">\n${head}${records
+    .map((r) => recordLine(file, r))
+    .join('\n')}\n</file>`;
 }

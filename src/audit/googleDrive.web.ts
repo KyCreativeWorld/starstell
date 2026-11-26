@@ -129,25 +129,25 @@ async function driveFetch(url: string, init: RequestInit): Promise<any> {
   throw new DriveError(`Google Drive error ${res.status}. Try again in a moment.`);
 }
 
-/**
- * Creates a new subfolder named `runName` inside the Drive folder at
- * `parentFolderUrl` and uploads `files` into it. Returns the new folder.
- */
-export async function saveToDrive(parentFolderUrl: string, runName: string, files: DriveFile[]): Promise<DriveFolder> {
+/** Creates a folder named `name` inside the Drive folder at `parentFolderUrl`. */
+export async function createDriveFolder(parentFolderUrl: string, name: string): Promise<DriveFolder> {
   const parentId = driveFolderId(parentFolderUrl);
   if (!parentId) throw new DriveError('The data folder in Settings is not a Google Drive folder link.');
-
   const folder = await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink&supportsAllDrives=true', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: runName, mimeType: FOLDER_MIME, parents: [parentId] }),
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }),
   });
+  return { id: folder.id, name: folder.name, url: folder.webViewLink ?? `https://drive.google.com/drive/folders/${folder.id}` };
+}
 
+/** Uploads files into a folder this app created. */
+export async function uploadToDrive(folderId: string, files: DriveFile[]): Promise<void> {
   for (const f of files) {
     const boundary = `starstell-${Math.random().toString(36).slice(2)}`;
     const body =
       `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
-      `${JSON.stringify({ name: f.name, mimeType: f.mimeType, parents: [folder.id] })}\r\n` +
+      `${JSON.stringify({ name: f.name, mimeType: f.mimeType, parents: [folderId] })}\r\n` +
       `--${boundary}\r\nContent-Type: ${f.mimeType}; charset=UTF-8\r\n\r\n${f.content}\r\n--${boundary}--`;
     await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id&supportsAllDrives=true', {
       method: 'POST',
@@ -155,5 +155,4 @@ export async function saveToDrive(parentFolderUrl: string, runName: string, file
       body,
     });
   }
-  return { id: folder.id, name: folder.name, url: folder.webViewLink ?? `https://drive.google.com/drive/folders/${folder.id}` };
 }

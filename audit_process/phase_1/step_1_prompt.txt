@@ -1,0 +1,11 @@
+STEP 1: TIMELINES OF EACH PERSON'S WORK
+
+Do Step 1 only: the field map and readiness checks (Sections 2 and 3 of the
+brief), identity resolution and pseudonymous IDs (Sections 4.1 and 4.2), and
+timelines (Section 4.3). Task records are Step 3 and run in separate prompts.
+
+The app splits Step 1 into several prompts: a field map from sample records,
+then identity resolution from the distinct identifiers, then timelines for a
+few people at a time. Each prompt's PIPELINE TASK says which part it covers and
+the exact JSON to return; return that in place of the full output contract in
+Section 7. Follow every rule in the brief in each part.
